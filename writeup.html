@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Routes Writeup</title>
+</head>
+<body>
+  <main>
+    <h1>Client-Side Routing Writeup</h1>
+
+    <section>
+      <h2>Routes</h2>
+
+      <ul>
+        <li>
+          <strong>/</strong> — Home page route. This shows the list of chats and lets the user create a new chat.
+        </li>
+
+        <li>
+          <strong>/chat/:chatId</strong> — Dynamic chat route. The <code>chatId</code> part changes depending on which chat the user opens.
+        </li>
+
+        <li>
+            <strong>/chat/:chatId/digest</strong> — Dynamic chat digest route. This shows only the important messages from one specific chat.
+        </li>
+
+        <li>
+          <strong>/digest</strong> — Daily digest route. This shows important messages from across chats.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Design Decisions</h2>
+
+      <p>
+        I used client-side routing so the app feels like multiple pages while still working as one Vue app.
+        The home route is for browsing chats, the chat route is for participating in a specific conversation,
+        and the digest route is for reviewing important messages.
+      </p>
+
+      <p>
+        I made the chat page a dynamic route because each chat should have its own URL.
+        This matches the structure of the app because every chat has its own identity and can eventually map to its own Graffiti channel.
+      </p>
+
+      <p>
+        I kept the daily digest as a separate route because it is a different mode from normal chatting.
+        Instead of showing every message, it focuses only on messages that were marked as important.
+      </p>
+
+      <p>
+        I added a separate dynamic route for each chat’s digest because a chat digest should only summarize important messages from that one chat. The home digest is separate because it summarizes important messages across all chats.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
