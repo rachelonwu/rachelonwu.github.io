@@ -178,22 +178,22 @@ export default {
         </section>
 
         <section>
-          <h2>Your Chats</h2>
+  <h2>Your Chats</h2>
 
-          <p v-if="isFirstPoll">Loading chats...</p>
-          <p v-else-if="chats.length === 0">No chats yet.</p>
+  <p v-if="isFirstPoll">Loading chats...</p>
+  <p v-else-if="chats.length === 0">No chats yet.</p>
 
-          <article
-            v-for="chat in chats"
-            :key="chat.url"
-            class="chat-card"
-          >
-            <h3>{{ chat.title }}</h3>
-            <p>{{ chat.members.length }} member(s)</p>
-            <p><small>Channel: <code>{{ chat.channel }}</code></small></p>
-          </article>
-        </section>
-      </section>
+  <router-link
+    v-for="chat in chats"
+    :key="chat.url"
+    class="chat-card"
+    :to="'/chat/' + encodeURIComponent(chat.channel)"
+  >
+    <h3>{{ chat.title }}</h3>
+    <p>{{ chat.members.length }} member(s)</p>
+    <p><small>Channel: <code>{{ chat.channel }}</code></small></p>
+  </router-link>
+</section>
     </main>
   `,
 };

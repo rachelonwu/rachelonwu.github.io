@@ -5,18 +5,18 @@ import { GraffitiDecentralized } from "@graffiti-garden/implementation-decentral
 import { GraffitiPlugin } from "@graffiti-garden/wrapper-vue";
 
 import Home from "./pages/Home.js";
+import Chat from "./pages/Chat.js";
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: "/", component: Home },
+    { path: "/chat/:chatId", component: Chat, props: true },
   ],
 });
 
 createApp({
-  template: `
-    <router-view></router-view>
-  `,
+  template: `<router-view></router-view>`,
 })
   .use(router)
   .use(GraffitiPlugin, {
