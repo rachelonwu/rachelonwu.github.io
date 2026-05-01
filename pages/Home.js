@@ -130,9 +130,13 @@ export default {
   template: `
     <main class="phone-shell">
       <header class="home-header">
-        <h1>Messages</h1>
-        <router-link to="/digest" class="digest-link">All Digest</router-link>
-      </header>
+  <h1>Messages</h1>
+
+  <div class="home-links">
+    <router-link to="/digest" class="digest-link">All Digest</router-link>
+    <router-link to="/reminders" class="digest-link">Reminders</router-link>
+  </div>
+</header>
 
       <section v-if="session === undefined">
         <p>Loading Graffiti...</p>

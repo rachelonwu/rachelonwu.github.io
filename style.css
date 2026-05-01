@@ -256,3 +256,26 @@ code {
 .digest-card p {
   margin: 0 0 6px;
 }
+.home-links {
+  display: flex;
+  gap: 6px;
+}
+
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.reminder-button.reminded {
+  color: #6d4cff;
+}

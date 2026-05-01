@@ -32,7 +32,7 @@ const chatEventSchema = {
     value: {
       properties: {
         activity: {
-          enum: ["Send", "Star"],
+          enum: ["Send", "Star", "Remind"],
         },
       },
       required: ["activity"],
@@ -78,6 +78,14 @@ export default {
       return chatEvents.value.filter((object) => object.value.activity === "Star");
     });
 
+    const reminders = computed(() => {
+      return chatEvents.value.filter(
+        (object) =>
+          object.value.activity === "Remind" &&
+          object.actor === session.value?.actor
+      );
+    });
+
     const messages = computed(() => {
       return chatEvents.value
         .filter((object) => object.value.activity === "Send")
@@ -87,6 +95,9 @@ export default {
           content: object.value.content,
           published: object.value.published,
           important: stars.value.some((star) => star.value.target === object.url),
+          reminded: reminders.value.some(
+            (reminder) => reminder.value.target === object.url
+          ),
         }))
         .sort((a, b) => a.published - b.published);
     });
@@ -169,6 +180,36 @@ export default {
       }
     }
 
+    async function remindLater(message) {
+      if (!session.value || !chat.value || message.reminded) return;
+
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Remind",
+              type: "MessageReminder",
+              target: message.url,
+              chatChannel: props.chatId,
+              chatTitle: chat.value.value.title,
+              messagePreview: message.content,
+              remindAt: Date.now() + 24 * 60 * 60 * 1000,
+              published: Date.now(),
+            },
+            channels: [props.chatId, session.value.actor + "/reminders"],
+            allowed: [session.value.actor],
+          },
+          session.value
+        );
+
+        statusMessage.value = "Reminder saved for tomorrow.";
+        await pollEvents();
+      } catch (error) {
+        console.error(error);
+        statusMessage.value = "Could not save reminder.";
+      }
+    }
+
     return {
       session,
       chat,
@@ -178,6 +219,7 @@ export default {
       statusMessage,
       sendMessage,
       markImportant,
+      remindLater,
     };
   },
 
@@ -227,11 +269,23 @@ export default {
               <div class="message-meta">
                 <small><code>{{ message.actor }}</code></small>
 
-                <StarButton
-                  :active="message.important"
-                  label="Mark message as important"
-                  @toggle="markImportant(message)"
-                />
+                <div class="message-actions">
+                  <StarButton
+                    :active="message.important"
+                    label="Mark message as important"
+                    @toggle="markImportant(message)"
+                  />
+
+                  <button
+                    type="button"
+                    class="reminder-button"
+                    :class="{ reminded: message.reminded }"
+                    @click="remindLater(message)"
+                    aria-label="Remind me later"
+                  >
+                    {{ message.reminded ? "⏰" : "🕘" }}
+                  </button>
+                </div>
               </div>
             </div>
           </article>
