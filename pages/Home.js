@@ -111,6 +111,7 @@ export default {
     <main class="phone-shell">
       <header class="topbar">
         <h1>Messages</h1>
+        <router-link to="/digest">All Chats Digest</router-link>
       </header>
 
       <section v-if="session === undefined">
@@ -140,7 +141,7 @@ export default {
 
           <textarea
             v-model="memberActors"
-            placeholder="Other members' actor IDs, separated by commas"
+            placeholder="Other members' Graffiti actor IDs, separated by commas"
           ></textarea>
 
           <button @click="createChat">Create Chat</button>
