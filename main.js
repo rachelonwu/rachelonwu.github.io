@@ -9,21 +9,21 @@ import Chat from "./pages/Chat.js";
 import Digest from "./pages/Digest.js";
 import ChatDigest from "./pages/ChatDigest.js";
 
-const routes = [
-  { path: "/", component: Home },
-  { path: "/chat/:chatId", component: Chat, props: true },
-  { path: "/chat/:chatId/digest", component: ChatDigest, props: true },
-  { path: "/digest", component: Digest },
-];
-
 const router = createRouter({
   history: createWebHashHistory(),
-  routes,
+  routes: [
+    { path: "/", component: Home },
+    { path: "/chat/:chatId", component: Chat, props: true },
+    { path: "/chat/:chatId/digest", component: ChatDigest, props: true },
+    { path: "/digest", component: Digest },
+  ],
 });
 
 createApp({
-  template: `<router-view></router-view>`,
+  template: "#template",
 })
   .use(router)
-  .use(GraffitiPlugin, { graffiti: new GraffitiDecentralized() })
+  .use(GraffitiPlugin, {
+    graffiti: new GraffitiDecentralized(),
+  })
   .mount("#app");
