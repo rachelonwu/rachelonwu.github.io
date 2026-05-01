@@ -1,36 +1,77 @@
+import {
+  useGraffitiSession,
+  useGraffitiDiscover,
+} from "@graffiti-garden/wrapper-vue";
+
+import { computed } from "vue";
+
+const eventSchema = {
+  properties: {
+    value: {
+      properties: {
+        activity: {
+          enum: ["Send", "Star"],
+        },
+      },
+      required: ["activity"],
+    },
+  },
+};
+
 export default {
-  props: ["store", "chatId"],
+  props: ["chatId"],
 
-  computed: {
-    chat() {
-      return this.store.chats.find(chat => chat.id === this.chatId);
-    },
+  setup(props) {
+    const session = useGraffitiSession();
 
-    importantMessages() {
-      if (!this.chat) return [];
-      return this.chat.messages.filter(message => message.important);
-    },
+    const { objects } = useGraffitiDiscover(
+      [props.chatId],
+      eventSchema,
+      session
+    );
+
+    const importantMessages = computed(() => {
+      const stars = objects.value.filter(
+        (object) => object.value.activity === "Star"
+      );
+
+      return objects.value
+        .filter((object) => object.value.activity === "Send")
+        .filter((message) =>
+          stars.some((star) => star.value.target === message.url)
+        )
+        .sort((a, b) => a.value.published - b.value.published);
+    });
+
+    return {
+      session,
+      importantMessages,
+    };
   },
 
   template: `
-    <main class="phone-shell" v-if="chat">
-      <header class="topbar">
-        <router-link :to="'/chat/' + chat.id">Back</router-link>
-        <h1>{{ chat.title }} Digest</h1>
-      </header>
+    <main class="phone-shell">
+      <router-link :to="'/chat/' + encodeURIComponent(chatId)">Back</router-link>
 
-      <p class="page-note">
-        Important messages from this chat only.
-      </p>
+      <h1>Chat Digest</h1>
+      <p>Important messages from this chat only.</p>
 
-      <section>
+      <section v-if="session === undefined">
+        Loading...
+      </section>
+
+      <section v-else-if="session === null">
+        Log in to view this digest.
+      </section>
+
+      <section v-else>
         <article
           v-for="message in importantMessages"
-          :key="message.id"
+          :key="message.url"
           class="digest-card"
         >
-          <p>{{ message.text }}</p>
-          <small>{{ message.sender }} · {{ message.time }}</small>
+          <p>{{ message.value.content }}</p>
+          <small><code>{{ message.actor }}</code></small>
         </article>
 
         <p v-if="importantMessages.length === 0">

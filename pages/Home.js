@@ -1,40 +1,111 @@
-export default {
-  props: ["store"],
+import {
+  useGraffiti,
+  useGraffitiSession,
+  useGraffitiDiscover,
+} from "@graffiti-garden/wrapper-vue";
 
-  data() {
-    return {
-      newChatTitle: "",
-      newMembers: "",
-    };
+import { computed, ref } from "vue";
+import { CHAT_INDEX_CHANNEL } from "../constants.js";
+
+const chatSchema = {
+  properties: {
+    value: {
+      properties: {
+        activity: { const: "Create" },
+        type: { const: "Chat" },
+        title: { type: "string" },
+        channel: { type: "string" },
+        members: {
+          type: "array",
+          items: { type: "string" },
+        },
+        published: { type: "number" },
+      },
+      required: ["activity", "type", "title", "channel", "members", "published"],
+    },
   },
+};
 
-  methods: {
-    latestPreview(chat) {
-      if (chat.messages.length === 0) {
-        return "No messages yet";
+export default {
+  setup() {
+    const graffiti = useGraffiti();
+    const session = useGraffitiSession();
+
+    const title = ref("");
+    const memberActors = ref("");
+
+    const { objects: chatObjects, isFirstPoll } = useGraffitiDiscover(
+      [CHAT_INDEX_CHANNEL],
+      chatSchema,
+      session
+    );
+
+    const chats = computed(() => {
+      return chatObjects.value
+        .map((object) => ({
+          url: object.url,
+          title: object.value.title,
+          channel: object.value.channel,
+          members: object.value.members,
+          published: object.value.published,
+        }))
+        .sort((a, b) => b.published - a.published);
+    });
+
+    async function login() {
+      await graffiti.login();
+    }
+
+    async function logout() {
+      if (session.value) {
+        await graffiti.logout(session.value);
       }
+    }
 
-      return chat.messages[chat.messages.length - 1].text;
-    },
-
-    createChat() {
-      if (!this.newChatTitle.trim()) return;
-
-      const members = this.newMembers
+    function parseActors() {
+      return memberActors.value
         .split(",")
-        .map(member => member.trim())
-        .filter(member => member.length > 0);
+        .map((actor) => actor.trim())
+        .filter((actor) => actor.length > 0);
+    }
 
-      this.store.chats.push({
-        id: crypto.randomUUID(),
-        title: this.newChatTitle,
-        members: ["Rachel", ...members],
-        messages: [],
-      });
+    async function createChat() {
+      if (!session.value || !title.value.trim()) return;
 
-      this.newChatTitle = "";
-      this.newMembers = "";
-    },
+      const members = Array.from(
+        new Set([session.value.actor, ...parseActors()])
+      );
+
+      await graffiti.post(
+        {
+          value: {
+            activity: "Create",
+            type: "Chat",
+            title: title.value.trim(),
+            channel: crypto.randomUUID(),
+            members,
+            published: Date.now(),
+          },
+          channels: [CHAT_INDEX_CHANNEL],
+          allowed: members,
+        },
+        session.value
+      );
+
+      title.value = "";
+      memberActors.value = "";
+    }
+
+    return {
+      session,
+      isFirstPoll,
+      chats,
+      title,
+      memberActors,
+      login,
+      logout,
+      createChat,
+    };
   },
 
   template: `
@@ -44,23 +115,52 @@ export default {
         <router-link to="/digest">All Chats Digest</router-link>
       </header>
 
-      <section class="new-chat">
-        <input v-model="newChatTitle" placeholder="New chat name" />
-        <input v-model="newMembers" placeholder="Members, separated by commas" />
-        <button @click="createChat">Create Chat</button>
+      <section v-if="session === undefined">
+        Loading...
       </section>
 
-      <section class="chat-list">
-        <router-link
-          v-for="chat in store.chats"
-          :key="chat.id"
-          class="chat-row"
-          :to="'/chat/' + chat.id"
-        >
-          <strong>{{ chat.title }}</strong>
-          <span>{{ latestPreview(chat) }}</span>
-          <small>Members: {{ chat.members.join(", ") }}</small>
-        </router-link>
+      <section v-else-if="session === null">
+        <p>You need to log in before using the chat app.</p>
+        <button @click="login">Log in with Graffiti</button>
+      </section>
+
+      <section v-else>
+        <p class="actor-box">
+          Your actor ID:
+          <code>{{ session.actor }}</code>
+        </p>
+
+        <button @click="logout">Log out</button>
+
+        <section class="new-chat">
+          <h2>Create a Chat</h2>
+
+          <input
+            v-model="title"
+            placeholder="Chat name"
+          />
+
+          <textarea
+            v-model="memberActors"
+            placeholder="Other members' Graffiti actor IDs, separated by commas"
+          ></textarea>
+
+          <button @click="createChat">Create Chat</button>
+        </section>
+
+        <p v-if="isFirstPoll">Loading chats...</p>
+
+        <section class="chat-list">
+          <router-link
+            v-for="chat in chats"
+            :key="chat.url"
+            class="chat-row"
+            :to="'/chat/' + encodeURIComponent(chat.channel)"
+          >
+            <strong>{{ chat.title }}</strong>
+            <span>{{ chat.members.length }} members</span>
+          </router-link>
+        </section>
       </section>
     </main>
   `,
