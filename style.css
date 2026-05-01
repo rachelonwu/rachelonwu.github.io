@@ -1,152 +1,21 @@
 body {
-  margin: 0;
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 20px;
   background: #f5f5f5;
 }
 
 .phone-shell {
-  max-width: 420px;
-  min-height: 100vh;
+  max-width: 500px;
   margin: 0 auto;
   background: white;
-  padding: 16px;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-
-.topbar h1 {
-  font-size: 20px;
-}
-
-a {
-  color: #555;
-  text-decoration: none;
-}
-
-.chat-row {
-  display: block;
-  padding: 14px 0;
-  border-bottom: 1px solid #ddd;
-}
-
-.chat-row span {
-  display: block;
-  color: #666;
-  margin-top: 4px;
-}
-
-.new-chat,
-.composer {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-input {
-  flex: 1;
-  padding: 8px;
+  padding: 20px;
 }
 
 button {
-  padding: 8px 10px;
-}
-
-.message {
-  background: #eee;
-  padding: 10px;
-  border-radius: 12px;
-  margin-bottom: 10px;
-}
-
-.star-button {
-  border: none;
-  background: none;
-  font-size: 20px;
-}
-
-.starred {
-  color: goldenrod;
-}
-
-.digest-card {
-  border-bottom: 1px solid #ddd;
-  padding: 12px 0;
-}
-
-.page-note {
-  color: #666;
-}
-
-.members {
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 14px;
-}
-
-.add-member {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.chat-row small {
-  display: block;
-  color: #777;
-  margin-top: 4px;
-}
-
-.message small,
-.digest-card small {
-  color: #666;
-}
-
-.page-note {
-  color: #666;
-  margin-bottom: 16px;
-}
-
-.actor-box {
-  background: #f2f2f2;
-  padding: 10px;
-  border-radius: 8px;
-  overflow-wrap: anywhere;
-}
-
-textarea {
-  width: 100%;
-  min-height: 70px;
-  padding: 8px;
-  font-family: inherit;
+  padding: 8px 12px;
 }
 
 code {
   overflow-wrap: anywhere;
-}
-
-.members {
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 14px;
-}
-
-.members ul {
-  padding-left: 18px;
-}
-
-.star-button {
-  border: none;
-  background: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.starred {
-  color: goldenrod;
 }
