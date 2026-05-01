@@ -1,1 +1,1 @@
-export const CHAT_INDEX_CHANNEL = "rachelonwu-chat-app-index";
+export const CHAT_INDEX_CHANNEL = "rachelonwu-important-message-chat-index";
