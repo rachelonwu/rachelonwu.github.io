@@ -33,8 +33,13 @@ export default {
 
     const title = ref("");
     const memberActors = ref("");
+    const statusMessage = ref("");
 
-    const { objects: chatObjects, isFirstPoll } = useGraffitiDiscover(
+    const {
+      objects: chatObjects,
+      isFirstPoll,
+      poll,
+    } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
       chatSchema,
       session
@@ -70,30 +75,49 @@ export default {
     }
 
     async function createChat() {
-      if (!session.value || !title.value.trim()) return;
+      statusMessage.value = "Trying to create chat...";
+
+      if (!session.value) {
+        statusMessage.value = "You must log in before creating a chat.";
+        return;
+      }
+
+      if (!title.value.trim()) {
+        statusMessage.value = "Please enter a chat name.";
+        return;
+      }
 
       const members = Array.from(
         new Set([session.value.actor, ...parseMemberActors()])
       );
 
-      await graffiti.post(
-        {
-          value: {
-            activity: "Create",
-            type: "Chat",
-            title: title.value.trim(),
-            channel: crypto.randomUUID(),
-            members,
-            published: Date.now(),
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Create",
+              type: "Chat",
+              title: title.value.trim(),
+              channel: crypto.randomUUID(),
+              members,
+              published: Date.now(),
+            },
+            channels: [CHAT_INDEX_CHANNEL],
+            allowed: members,
           },
-          channels: [CHAT_INDEX_CHANNEL],
-          allowed: members,
-        },
-        session.value
-      );
+          session.value
+        );
 
-      title.value = "";
-      memberActors.value = "";
+        title.value = "";
+        memberActors.value = "";
+
+        await poll();
+
+        statusMessage.value = "Chat created.";
+      } catch (error) {
+        console.error(error);
+        statusMessage.value = "Something went wrong creating the chat. Check the console.";
+      }
     }
 
     return {
@@ -102,6 +126,7 @@ export default {
       memberActors,
       chats,
       isFirstPoll,
+      statusMessage,
       login,
       logout,
       createChat,
@@ -141,11 +166,15 @@ export default {
             Other members:
             <textarea
               v-model="memberActors"
-              placeholder="Paste Graffiti actor IDs, separated by commas"
+              placeholder="Paste other Graffiti actor IDs, separated by commas"
             ></textarea>
           </label>
 
           <button @click="createChat">Create Chat</button>
+
+          <p v-if="statusMessage">
+            {{ statusMessage }}
+          </p>
         </section>
 
         <section>
