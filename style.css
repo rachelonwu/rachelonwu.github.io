@@ -12,74 +12,56 @@ textarea {
 }
 
 .phone-shell {
-  width: min(100%, 420px);
+  width: min(100%, 430px);
   min-height: 100vh;
   margin: 0 auto;
   background: white;
-  padding: 16px;
   box-sizing: border-box;
 }
 
+.phone-shell:not(.chat-page) {
+  padding: 16px;
+}
+
 h1 {
-  font-size: 22px;
   margin: 0;
+  font-size: 22px;
 }
 
 h2 {
   font-size: 18px;
-  margin-top: 24px;
 }
 
 a {
-  color: #444;
+  color: #333;
   text-decoration: none;
+}
+
+button {
+  border: 1px solid #ddd;
+  background: #f2f2f2;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 input,
 textarea {
+  box-sizing: border-box;
   width: 100%;
   padding: 9px;
   margin-top: 5px;
-  box-sizing: border-box;
 }
 
 textarea {
   min-height: 70px;
 }
 
-button {
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  background: #f2f2f2;
-  border-radius: 8px;
-}
-
-.home-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-
-.digest-link {
-  font-size: 13px;
-  background: #f2f2f2;
-  padding: 6px 9px;
-  border-radius: 999px;
-}
-
-.actor-box {
-  background: #f2f2f2;
-  padding: 10px;
-  border-radius: 8px;
-  overflow-wrap: anywhere;
-}
-
+.actor-box,
 .new-chat {
-  margin-top: 20px;
-  padding: 12px;
   background: #f7f7f7;
+  padding: 12px;
   border-radius: 12px;
+  overflow-wrap: anywhere;
 }
 
 label {
@@ -90,13 +72,8 @@ label {
 .chat-card {
   display: block;
   color: black;
-  text-decoration: none;
   border-bottom: 1px solid #e5e5e5;
   padding: 14px 0;
-}
-
-.chat-card:hover {
-  background: #f7f7f7;
 }
 
 .chat-card h3 {
@@ -105,37 +82,30 @@ label {
 }
 
 .chat-card p {
-  margin: 4px 0;
+  margin: 0;
   color: #666;
 }
 
-.chat-screen {
-  padding: 0;
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.screen {
+.chat-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.chat-topbar {
+.chat-header {
   display: grid;
-  grid-template-columns: 42px 1fr 70px;
+  grid-template-columns: 42px 1fr 68px;
+  gap: 8px;
   align-items: center;
   border-bottom: 1px solid #e5e5e5;
-  padding: 12px 14px;
+  padding: 12px;
   box-sizing: border-box;
-}
-
-.digest-topbar {
-  grid-template-columns: 42px 1fr 42px;
-}
-
-.chat-topbar h1 {
-  text-align: center;
-  font-size: 16px;
-  margin: 0;
 }
 
 .back-link {
@@ -143,9 +113,35 @@ label {
   line-height: 1;
 }
 
+.chat-title-area {
+  text-align: center;
+  min-width: 0;
+}
+
+.chat-title-area h1 {
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-title-area p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #777;
+}
+
+.digest-link {
+  font-size: 13px;
+  background: #f2f2f2;
+  border-radius: 999px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
 .messages {
   flex: 1;
-  padding: 14px 12px 86px;
+  padding: 14px 12px 92px;
   box-sizing: border-box;
 }
 
@@ -171,6 +167,7 @@ label {
 
 .message-bubble p {
   margin: 0;
+  font-size: 15px;
 }
 
 .message-meta {
@@ -183,8 +180,9 @@ label {
 
 .message-meta small {
   color: #666;
-  font-size: 11px;
+  font-size: 10px;
   max-width: 150px;
+  overflow-wrap: anywhere;
 }
 
 code {
@@ -199,8 +197,8 @@ code {
   color: #b5b5b5;
   cursor: pointer;
   line-height: 1;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 30px;
+  min-height: 30px;
 }
 
 .star-button.starred {
@@ -212,9 +210,9 @@ code {
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: min(100%, 420px);
+  width: min(100%, 430px);
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 64px;
+  grid-template-columns: 34px minmax(0, 1fr) 56px;
   gap: 8px;
   align-items: center;
   background: white;
@@ -224,27 +222,30 @@ code {
 }
 
 .composer input {
-  margin: 0;
   width: 100%;
   min-width: 0;
+  margin: 0;
   border: none;
   background: #f1f1f1;
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 11px 13px;
 }
 
 .send-button {
-  width: 64px;
-  white-space: nowrap;
+  width: 56px;
   border-radius: 999px;
-  padding: 9px 0;
+  padding: 10px 0;
+  text-align: center;
 }
 
 .empty-state,
-.status-message,
-.page-note {
-  color: #666;
+.status-message {
   text-align: center;
+  color: #666;
+}
+
+.digest-list {
+  padding: 12px;
 }
 
 .digest-card {
@@ -253,5 +254,5 @@ code {
 }
 
 .digest-card p {
-  margin: 6px 0;
+  margin: 0 0 6px;
 }

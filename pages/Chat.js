@@ -6,6 +6,7 @@ import {
 
 import { computed, ref } from "vue";
 import { CHAT_INDEX_CHANNEL } from "../constants.js";
+import StarButton from "../components/StarButton.js";
 
 const chatSchema = {
   properties: {
@@ -26,21 +27,24 @@ const chatSchema = {
   },
 };
 
-const messageSchema = {
+const chatEventSchema = {
   properties: {
     value: {
       properties: {
-        activity: { const: "Send" },
-        type: { const: "Message" },
-        content: { type: "string" },
-        published: { type: "number" },
+        activity: {
+          enum: ["Send", "Star"],
+        },
       },
-      required: ["activity", "type", "content", "published"],
+      required: ["activity"],
     },
   },
 };
 
 export default {
+  components: {
+    StarButton,
+  },
+
   props: ["chatId"],
 
   setup(props) {
@@ -48,6 +52,7 @@ export default {
     const session = useGraffitiSession();
 
     const draftMessage = ref("");
+    const draftImportant = ref(false);
     const statusMessage = ref("");
 
     const { objects: chatObjects } = useGraffitiDiscover(
@@ -56,12 +61,9 @@ export default {
       session
     );
 
-    const {
-      objects: messageObjects,
-      poll: pollMessages,
-    } = useGraffitiDiscover(
+    const { objects: chatEvents, poll: pollEvents } = useGraffitiDiscover(
       [props.chatId],
-      messageSchema,
+      chatEventSchema,
       session,
       true
     );
@@ -72,13 +74,19 @@ export default {
       );
     });
 
+    const stars = computed(() => {
+      return chatEvents.value.filter((object) => object.value.activity === "Star");
+    });
+
     const messages = computed(() => {
-      return messageObjects.value
+      return chatEvents.value
+        .filter((object) => object.value.activity === "Send")
         .map((object) => ({
           url: object.url,
           actor: object.actor,
           content: object.value.content,
           published: object.value.published,
+          important: stars.value.some((star) => star.value.target === object.url),
         }))
         .sort((a, b) => a.published - b.published);
     });
@@ -86,13 +94,8 @@ export default {
     async function sendMessage() {
       statusMessage.value = "";
 
-      if (!session.value) {
-        statusMessage.value = "You must log in to send a message.";
-        return;
-      }
-
-      if (!chat.value) {
-        statusMessage.value = "Chat not found.";
+      if (!session.value || !chat.value) {
+        statusMessage.value = "You must be logged in and inside a valid chat.";
         return;
       }
 
@@ -102,7 +105,7 @@ export default {
       }
 
       try {
-        await graffiti.post(
+        const messageObject = await graffiti.post(
           {
             value: {
               activity: "Send",
@@ -116,11 +119,53 @@ export default {
           session.value
         );
 
+        if (draftImportant.value) {
+          await graffiti.post(
+            {
+              value: {
+                activity: "Star",
+                type: "ImportantMark",
+                target: messageObject.url,
+                published: Date.now(),
+              },
+              channels: [props.chatId],
+              allowed: chat.value.value.members,
+            },
+            session.value
+          );
+        }
+
         draftMessage.value = "";
-        await pollMessages();
+        draftImportant.value = false;
+        await pollEvents();
       } catch (error) {
         console.error(error);
-        statusMessage.value = "Message failed to send. Check the console.";
+        statusMessage.value = "Message failed to send.";
+      }
+    }
+
+    async function markImportant(message) {
+      if (!session.value || !chat.value || message.important) return;
+
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "Star",
+              type: "ImportantMark",
+              target: message.url,
+              published: Date.now(),
+            },
+            channels: [props.chatId],
+            allowed: chat.value.value.members,
+          },
+          session.value
+        );
+
+        await pollEvents();
+      } catch (error) {
+        console.error(error);
+        statusMessage.value = "Could not mark message as important.";
       }
     }
 
@@ -129,13 +174,15 @@ export default {
       chat,
       messages,
       draftMessage,
+      draftImportant,
       statusMessage,
       sendMessage,
+      markImportant,
     };
   },
 
   template: `
-    <main class="phone-shell">
+    <main class="phone-shell chat-page">
       <section v-if="session === undefined">
         <p>Loading Graffiti...</p>
       </section>
@@ -150,43 +197,68 @@ export default {
         <router-link to="/">Back home</router-link>
       </section>
 
-      <section v-else>
-        <header class="topbar">
-          <router-link to="/">Back</router-link>
-          <h1>{{ chat.value.title }}</h1>
-        </header>
+      <section v-else class="chat-layout">
+        <header class="chat-header">
+          <router-link to="/" class="back-link">‹</router-link>
 
-        <section class="members">
-          <strong>Members:</strong>
-          <ul>
-            <li v-for="member in chat.value.members" :key="member">
-              <code>{{ member }}</code>
-            </li>
-          </ul>
-        </section>
+          <div class="chat-title-area">
+            <h1>{{ chat.value.title }}</h1>
+            <p>{{ chat.value.members.length }} members</p>
+          </div>
+
+          <router-link
+            class="digest-link"
+            :to="'/chat/' + encodeURIComponent(chat.value.channel) + '/digest'"
+          >
+            Digest
+          </router-link>
+        </header>
 
         <section class="messages">
           <article
             v-for="message in messages"
             :key="message.url"
-            class="message"
+            class="message-row"
+            :class="{ mine: message.actor === session.actor }"
           >
-            <p>{{ message.content }}</p>
-            <small><code>{{ message.actor }}</code></small>
+            <div class="message-bubble">
+              <p>{{ message.content }}</p>
+
+              <div class="message-meta">
+                <small><code>{{ message.actor }}</code></small>
+
+                <StarButton
+                  :active="message.important"
+                  label="Mark message as important"
+                  @toggle="markImportant(message)"
+                />
+              </div>
+            </div>
           </article>
 
-          <p v-if="messages.length === 0">No messages yet.</p>
+          <p v-if="messages.length === 0" class="empty-state">
+            No messages yet.
+          </p>
         </section>
 
         <form class="composer" @submit.prevent="sendMessage">
+          <StarButton
+            :active="draftImportant"
+            label="Mark next message as important"
+            @toggle="draftImportant = !draftImportant"
+          />
+
           <input
             v-model="draftMessage"
             placeholder="Write your message"
           />
-          <button type="submit">Send</button>
+
+          <button type="submit" class="send-button">Send</button>
         </form>
 
-        <p v-if="statusMessage">{{ statusMessage }}</p>
+        <p v-if="statusMessage" class="status-message">
+          {{ statusMessage }}
+        </p>
       </section>
     </main>
   `,
