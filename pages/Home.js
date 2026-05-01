@@ -34,7 +34,7 @@ export default {
     const title = ref("");
     const memberActors = ref("");
 
-    const { objects: chatObjects, isFirstPoll } = useGraffitiDiscover(
+    const { objects: chatObjects } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
       chatSchema,
       session
@@ -69,36 +69,35 @@ export default {
         .filter((actor) => actor.length > 0);
     }
 
-    async function createChat(session) {
-  if (!session || !title.value.trim()) return;
+    async function createChat() {
+      if (!session.value || !title.value.trim()) return;
 
-  const members = Array.from(
-    new Set([session.actor, ...parseActors()])
-  );
+      const members = Array.from(
+        new Set([session.value.actor, ...parseActors()])
+      );
 
-  await graffiti.post(
-    {
-      value: {
-        activity: "Create",
-        type: "Chat",
-        title: title.value.trim(),
-        channel: crypto.randomUUID(),
-        members,
-        published: Date.now(),
-      },
-      channels: [CHAT_INDEX_CHANNEL],
-      allowed: members,
-    },
-    session
-  );
+      await graffiti.post(
+        {
+          value: {
+            activity: "Create",
+            type: "Chat",
+            title: title.value.trim(),
+            channel: crypto.randomUUID(),
+            members,
+            published: Date.now(),
+          },
+          channels: [CHAT_INDEX_CHANNEL],
+          allowed: members,
+        },
+        session.value
+      );
 
-  title.value = "";
-  memberActors.value = "";
-}
+      title.value = "";
+      memberActors.value = "";
+    }
 
     return {
       session,
-      isFirstPoll,
       chats,
       title,
       memberActors,
@@ -109,32 +108,30 @@ export default {
   },
 
   template: `
-  <main class="phone-shell">
-    <header class="topbar">
-      <h1>Messages</h1>
-      <router-link to="/digest">All Chats Digest</router-link>
-    </header>
+    <main class="phone-shell">
+      <header class="topbar">
+        <h1>Messages</h1>
+      </header>
 
-    <graffiti-session v-slot="{ session, login, logout }">
       <section v-if="session === undefined">
-        Loading Graffiti...
+        <p>Loading Graffiti...</p>
       </section>
 
       <section v-else-if="session === null">
-        <p>You need to log in before using the chat app.</p>
+        <p>You are not logged in.</p>
         <button @click="login">Log in / Create Graffiti Actor</button>
       </section>
 
       <section v-else>
         <p class="actor-box">
-          Your Graffiti actor ID:
+          Your actor ID:
           <code>{{ session.actor }}</code>
         </p>
 
-        <button @click="logout(session)">Log out</button>
+        <button @click="logout">Log out</button>
 
         <section class="new-chat">
-          <h2>Create a Chat</h2>
+          <h2>Create Chat</h2>
 
           <input
             v-model="title"
@@ -143,15 +140,17 @@ export default {
 
           <textarea
             v-model="memberActors"
-            placeholder="Other members' Graffiti actor IDs, separated by commas"
+            placeholder="Other members' actor IDs, separated by commas"
           ></textarea>
 
-          <button @click="createChat(session)">Create Chat</button>
+          <button @click="createChat">Create Chat</button>
         </section>
 
-        <p v-if="isFirstPoll">Loading chats...</p>
-
         <section class="chat-list">
+          <h2>Your Chats</h2>
+
+          <p v-if="chats.length === 0">No chats yet.</p>
+
           <router-link
             v-for="chat in chats"
             :key="chat.url"
@@ -163,8 +162,6 @@ export default {
           </router-link>
         </section>
       </section>
-    </graffiti-session>
-  </main>
-
+    </main>
   `,
 };
