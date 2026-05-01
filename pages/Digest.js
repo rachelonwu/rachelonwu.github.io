@@ -49,13 +49,15 @@ export default {
     );
 
     const chatChannels = computed(() => {
-      return chatObjects.value.map((chat) => chat.value.channel);
+      const channels = chatObjects.value.map((chat) => chat.value.channel);
+      return channels.length > 0 ? channels : ["empty-digest-placeholder"];
     });
 
     const { objects: allEvents } = useGraffitiDiscover(
       chatChannels,
       eventSchema,
-      session
+      session,
+      true
     );
 
     const digestItems = computed(() => {
@@ -70,13 +72,13 @@ export default {
         )
         .map((message) => {
           const chat = chatObjects.value.find((chatObject) =>
-            chatObject.value.channel === message.channels?.[0]
+            message.channels?.includes(chatObject.value.channel)
           );
 
           return {
             url: message.url,
             chatTitle: chat?.value.title ?? "Unknown chat",
-            chatChannel: chat?.value.channel ?? message.channels?.[0],
+            chatChannel: chat?.value.channel ?? "",
             content: message.value.content,
             actor: message.actor,
             published: message.value.published,
@@ -93,21 +95,19 @@ export default {
 
   template: `
     <main class="phone-shell">
-      <header class="topbar">
-        <router-link to="/">Back</router-link>
+      <header class="chat-topbar digest-topbar">
+        <router-link to="/" class="back-link">‹</router-link>
         <h1>All Chats Digest</h1>
       </header>
 
-      <p class="page-note">
-        Important messages from all chats you can access.
-      </p>
+      <p class="page-note">Important messages from all chats you can access.</p>
 
       <section v-if="session === undefined">
-        Loading...
+        <p>Loading Graffiti...</p>
       </section>
 
       <section v-else-if="session === null">
-        Log in to view your digest.
+        <p>Log in to view your digest.</p>
       </section>
 
       <section v-else>
@@ -120,12 +120,15 @@ export default {
           <p>{{ item.content }}</p>
           <small><code>{{ item.actor }}</code></small>
           <br />
-          <router-link :to="'/chat/' + encodeURIComponent(item.chatChannel)">
+          <router-link
+            v-if="item.chatChannel"
+            :to="'/chat/' + encodeURIComponent(item.chatChannel)"
+          >
             Open chat
           </router-link>
         </article>
 
-        <p v-if="digestItems.length === 0">
+        <p v-if="digestItems.length === 0" class="empty-state">
           No important messages yet.
         </p>
       </section>

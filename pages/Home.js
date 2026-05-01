@@ -39,11 +39,7 @@ export default {
       objects: chatObjects,
       isFirstPoll,
       poll,
-    } = useGraffitiDiscover(
-      [CHAT_INDEX_CHANNEL],
-      chatSchema,
-      session
-    );
+    } = useGraffitiDiscover([CHAT_INDEX_CHANNEL], chatSchema, session);
 
     const chats = computed(() => {
       return chatObjects.value
@@ -75,15 +71,15 @@ export default {
     }
 
     async function createChat() {
-      statusMessage.value = "Trying to create chat...";
+      statusMessage.value = "";
 
       if (!session.value) {
-        statusMessage.value = "You must log in before creating a chat.";
+        statusMessage.value = "Log in before creating a chat.";
         return;
       }
 
       if (!title.value.trim()) {
-        statusMessage.value = "Please enter a chat name.";
+        statusMessage.value = "Enter a chat name.";
         return;
       }
 
@@ -110,13 +106,11 @@ export default {
 
         title.value = "";
         memberActors.value = "";
-
-        await poll();
-
         statusMessage.value = "Chat created.";
+        await poll();
       } catch (error) {
         console.error(error);
-        statusMessage.value = "Something went wrong creating the chat. Check the console.";
+        statusMessage.value = "Could not create chat.";
       }
     }
 
@@ -124,9 +118,9 @@ export default {
       session,
       title,
       memberActors,
+      statusMessage,
       chats,
       isFirstPoll,
-      statusMessage,
       login,
       logout,
       createChat,
@@ -135,7 +129,10 @@ export default {
 
   template: `
     <main class="phone-shell">
-      <h1>Important Messages Chat App</h1>
+      <header class="home-header">
+        <h1>Messages</h1>
+        <router-link to="/digest" class="digest-link">All Digest</router-link>
+      </header>
 
       <section v-if="session === undefined">
         <p>Loading Graffiti...</p>
@@ -147,8 +144,8 @@ export default {
       </section>
 
       <section v-else>
-        <p>
-          Your Graffiti actor ID:
+        <p class="actor-box">
+          Your actor ID:
           <code>{{ session.actor }}</code>
         </p>
 
@@ -172,28 +169,26 @@ export default {
 
           <button @click="createChat">Create Chat</button>
 
-          <p v-if="statusMessage">
-            {{ statusMessage }}
-          </p>
+          <p v-if="statusMessage" class="status-message">{{ statusMessage }}</p>
         </section>
 
         <section>
-  <h2>Your Chats</h2>
+          <h2>Your Chats</h2>
 
-  <p v-if="isFirstPoll">Loading chats...</p>
-  <p v-else-if="chats.length === 0">No chats yet.</p>
+          <p v-if="isFirstPoll">Loading chats...</p>
+          <p v-else-if="chats.length === 0">No chats yet.</p>
 
-  <router-link
-    v-for="chat in chats"
-    :key="chat.url"
-    class="chat-card"
-    :to="'/chat/' + encodeURIComponent(chat.channel)"
-  >
-    <h3>{{ chat.title }}</h3>
-    <p>{{ chat.members.length }} member(s)</p>
-    <p><small>Channel: <code>{{ chat.channel }}</code></small></p>
-  </router-link>
-</section>
+          <router-link
+            v-for="chat in chats"
+            :key="chat.url"
+            class="chat-card"
+            :to="'/chat/' + encodeURIComponent(chat.channel)"
+          >
+            <h3>{{ chat.title }}</h3>
+            <p>{{ chat.members.length }} member(s)</p>
+          </router-link>
+        </section>
+      </section>
     </main>
   `,
 };

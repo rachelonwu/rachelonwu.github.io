@@ -17,11 +17,12 @@ textarea {
   margin: 0 auto;
   background: white;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 h1 {
   font-size: 22px;
-  margin: 0 0 18px;
+  margin: 0;
 }
 
 h2 {
@@ -51,6 +52,27 @@ button {
   border: 1px solid #ddd;
   background: #f2f2f2;
   border-radius: 8px;
+}
+
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.digest-link {
+  font-size: 13px;
+  background: #f2f2f2;
+  padding: 6px 9px;
+  border-radius: 999px;
+}
+
+.actor-box {
+  background: #f2f2f2;
+  padding: 10px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
 }
 
 .new-chat {
@@ -87,6 +109,10 @@ label {
   color: #666;
 }
 
+.chat-screen {
+  padding: 0;
+}
+
 .screen {
   min-height: 100vh;
   display: flex;
@@ -95,47 +121,32 @@ label {
 
 .chat-topbar {
   display: grid;
-  grid-template-columns: 35px 1fr;
+  grid-template-columns: 42px 1fr 70px;
   align-items: center;
   border-bottom: 1px solid #e5e5e5;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+.digest-topbar {
+  grid-template-columns: 42px 1fr 42px;
 }
 
 .chat-topbar h1 {
-  margin: 0;
   text-align: center;
-  font-size: 17px;
+  font-size: 16px;
+  margin: 0;
 }
 
 .back-link {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1;
-}
-
-.members {
-  background: #f7f7f7;
-  border-radius: 12px;
-  padding: 10px;
-  margin-bottom: 12px;
-}
-
-.members ul {
-  padding-left: 18px;
-  margin: 8px 0 0;
-}
-
-.members li {
-  margin-bottom: 5px;
-}
-
-code {
-  overflow-wrap: anywhere;
 }
 
 .messages {
   flex: 1;
-  padding-bottom: 80px;
+  padding: 14px 12px 86px;
+  box-sizing: border-box;
 }
 
 .message-row {
@@ -148,7 +159,7 @@ code {
 }
 
 .message-bubble {
-  max-width: 75%;
+  max-width: 76%;
   background: #eeeeee;
   border-radius: 16px;
   padding: 10px 12px;
@@ -173,15 +184,23 @@ code {
 .message-meta small {
   color: #666;
   font-size: 11px;
+  max-width: 150px;
+}
+
+code {
+  overflow-wrap: anywhere;
 }
 
 .star-button {
   border: none;
-  background: none;
+  background: transparent;
   padding: 0;
-  font-size: 21px;
+  font-size: 24px;
   color: #b5b5b5;
   cursor: pointer;
+  line-height: 1;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .star-button.starred {
@@ -195,17 +214,19 @@ code {
   transform: translateX(-50%);
   width: min(100%, 420px);
   display: grid;
-  grid-template-columns: 32px 1fr auto;
+  grid-template-columns: 34px minmax(0, 1fr) 64px;
   gap: 8px;
   align-items: center;
   background: white;
   border-top: 1px solid #e5e5e5;
-  padding: 10px 16px;
+  padding: 10px 12px;
   box-sizing: border-box;
 }
 
 .composer input {
   margin: 0;
+  width: 100%;
+  min-width: 0;
   border: none;
   background: #f1f1f1;
   border-radius: 999px;
@@ -213,11 +234,24 @@ code {
 }
 
 .send-button {
+  width: 64px;
+  white-space: nowrap;
   border-radius: 999px;
+  padding: 9px 0;
 }
 
 .empty-state,
-.status-message {
+.status-message,
+.page-note {
   color: #666;
   text-align: center;
+}
+
+.digest-card {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 14px 0;
+}
+
+.digest-card p {
+  margin: 6px 0;
 }
