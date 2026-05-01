@@ -6,7 +6,7 @@ export default {
     },
     label: {
       type: String,
-      default: "Toggle important message",
+      default: "Mark as important",
     },
   },
 
