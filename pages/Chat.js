@@ -32,7 +32,7 @@ const chatEventSchema = {
     value: {
       properties: {
         activity: {
-          enum: ["Send", "Star", "Remind"],
+          enum: ["Send", "Star", "Unstar", "Remind", "CancelReminder"],
         },
       },
       required: ["activity"],
@@ -54,6 +54,8 @@ export default {
     const draftMessage = ref("");
     const draftImportant = ref(false);
     const statusMessage = ref("");
+    const busyMessageTarget = ref("");
+    const sendingMessage = ref(false);
 
     const { objects: chatObjects } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
@@ -74,17 +76,31 @@ export default {
       );
     });
 
-    const stars = computed(() => {
-      return chatEvents.value.filter((object) => object.value.activity === "Star");
-    });
-
-    const reminders = computed(() => {
+    const starEvents = computed(() => {
       return chatEvents.value.filter(
         (object) =>
-          object.value.activity === "Remind" &&
+          object.value.activity === "Star" ||
+          object.value.activity === "Unstar"
+      );
+    });
+
+    const reminderEvents = computed(() => {
+      return chatEvents.value.filter(
+        (object) =>
+          (object.value.activity === "Remind" ||
+            object.value.activity === "CancelReminder") &&
           object.actor === session.value?.actor
       );
     });
+
+    function hasLatestEvent(events, target, activeActivity) {
+      const matching = events
+        .filter((event) => event.value.target === target)
+        .sort((a, b) => a.value.published - b.value.published);
+
+      if (matching.length === 0) return false;
+      return matching[matching.length - 1].value.activity === activeActivity;
+    }
 
     const messages = computed(() => {
       return chatEvents.value
@@ -94,13 +110,17 @@ export default {
           actor: object.actor,
           content: object.value.content,
           published: object.value.published,
-          important: stars.value.some((star) => star.value.target === object.url),
-          reminded: reminders.value.some(
-            (reminder) => reminder.value.target === object.url
-          ),
+          important: hasLatestEvent(starEvents.value, object.url, "Star"),
+          reminded: hasLatestEvent(reminderEvents.value, object.url, "Remind"),
         }))
         .sort((a, b) => a.published - b.published);
     });
+
+    function readableActor(actor) {
+      if (!actor) return "Unknown sender";
+      const shortId = actor.slice(-8);
+      return actor === session.value?.actor ? "You" : "Member " + shortId;
+    }
 
     async function sendMessage() {
       statusMessage.value = "";
@@ -116,6 +136,9 @@ export default {
       }
 
       try {
+        sendingMessage.value = true;
+        statusMessage.value = "Sending message...";
+
         const messageObject = await graffiti.post(
           {
             value: {
@@ -131,6 +154,8 @@ export default {
         );
 
         if (draftImportant.value) {
+          statusMessage.value = "Sending and starring message...";
+
           await graffiti.post(
             {
               value: {
@@ -149,21 +174,32 @@ export default {
         draftMessage.value = "";
         draftImportant.value = false;
         await pollEvents();
+        statusMessage.value = "Message sent.";
       } catch (error) {
         console.error(error);
         statusMessage.value = "Message failed to send.";
+      } finally {
+        sendingMessage.value = false;
       }
     }
 
-    async function markImportant(message) {
-      if (!session.value || !chat.value || message.important) return;
+    async function toggleImportant(message) {
+      if (!session.value || !chat.value || busyMessageTarget.value) return;
+
+      const nextActivity = message.important ? "Unstar" : "Star";
+      const nextType = message.important ? "ImportantUnmark" : "ImportantMark";
 
       try {
+        busyMessageTarget.value = message.url;
+        statusMessage.value = message.important
+          ? "Removing from starred messages..."
+          : "Adding to starred messages...";
+
         await graffiti.post(
           {
             value: {
-              activity: "Star",
-              type: "ImportantMark",
+              activity: nextActivity,
+              type: nextType,
               target: message.url,
               published: Date.now(),
             },
@@ -174,21 +210,36 @@ export default {
         );
 
         await pollEvents();
+        statusMessage.value = message.important
+          ? "Removed from starred messages."
+          : "Added to starred messages.";
       } catch (error) {
         console.error(error);
-        statusMessage.value = "Could not mark message as important.";
+        statusMessage.value = "Could not update starred message.";
+      } finally {
+        busyMessageTarget.value = "";
       }
     }
 
-    async function remindLater(message) {
-      if (!session.value || !chat.value || message.reminded) return;
+    async function toggleReminder(message) {
+      if (!session.value || !chat.value || busyMessageTarget.value) return;
+
+      const nextActivity = message.reminded ? "CancelReminder" : "Remind";
+      const nextType = message.reminded
+        ? "MessageReminderCancel"
+        : "MessageReminder";
 
       try {
+        busyMessageTarget.value = message.url;
+        statusMessage.value = message.reminded
+          ? "Canceling reminder..."
+          : "Saving reminder...";
+
         await graffiti.post(
           {
             value: {
-              activity: "Remind",
-              type: "MessageReminder",
+              activity: nextActivity,
+              type: nextType,
               target: message.url,
               chatChannel: props.chatId,
               chatTitle: chat.value.value.title,
@@ -202,11 +253,15 @@ export default {
           session.value
         );
 
-        statusMessage.value = "Reminder saved for tomorrow.";
         await pollEvents();
+        statusMessage.value = message.reminded
+          ? "Reminder canceled."
+          : "Reminder saved for tomorrow.";
       } catch (error) {
         console.error(error);
-        statusMessage.value = "Could not save reminder.";
+        statusMessage.value = "Could not update reminder.";
+      } finally {
+        busyMessageTarget.value = "";
       }
     }
 
@@ -217,31 +272,34 @@ export default {
       draftMessage,
       draftImportant,
       statusMessage,
+      sendingMessage,
+      busyMessageTarget,
       sendMessage,
-      markImportant,
-      remindLater,
+      toggleImportant,
+      toggleReminder,
+      readableActor,
     };
   },
 
   template: `
     <main class="phone-shell chat-page">
-      <section v-if="session === undefined">
-        <p>Loading Graffiti...</p>
+      <section v-if="session === undefined" class="loading-state">
+        <p>Loading chat...</p>
       </section>
 
-      <section v-else-if="session === null">
+      <section v-else-if="session === null" class="signed-out-state">
         <p>You must log in to view this chat.</p>
         <router-link to="/">Back home</router-link>
       </section>
 
-      <section v-else-if="!chat">
+      <section v-else-if="!chat" class="empty-state">
         <p>Chat not found, or you do not have access to it.</p>
         <router-link to="/">Back home</router-link>
       </section>
 
       <section v-else class="chat-layout">
         <header class="chat-header">
-          <router-link to="/" class="back-link">‹</router-link>
+          <router-link to="/" class="back-link" title="Back to home">‹</router-link>
 
           <div class="chat-title-area">
             <h1>{{ chat.value.title }}</h1>
@@ -249,70 +307,83 @@ export default {
           </div>
 
           <router-link
-            class="digest-link"
+            class="primary-nav-pill"
             :to="'/chat/' + encodeURIComponent(chat.value.channel) + '/digest'"
+            title="View starred messages from this chat"
           >
-            Digest
+            Starred
           </router-link>
         </header>
 
         <section class="messages">
-  <transition-group name="message-list">
-    <article
-      v-for="message in messages"
-      :key="message.url"
-      class="message-row"
-      :class="{ mine: message.actor === session.actor }"
-    >
-      <div class="message-bubble">
-        <p>{{ message.content }}</p>
-
-        <div class="message-meta">
-          <small><code>{{ message.actor }}</code></small>
-
-          <div class="message-actions">
-            <StarButton
-              :active="message.important"
-              label="Mark message as important"
-              @toggle="markImportant(message)"
-            />
-
-            <button
-              type="button"
-              class="reminder-button"
-              :class="{ reminded: message.reminded }"
-              @click="remindLater(message)"
-              aria-label="Remind me later"
+          <transition-group name="message-list">
+            <article
+              v-for="message in messages"
+              :key="message.url"
+              class="message-row"
+              :class="{ mine: message.actor === session.actor }"
             >
-              {{ message.reminded ? "⏰" : "🕘" }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </article>
-  </transition-group>
+              <div class="message-bubble" :class="{ important: message.important }">
+                <p>{{ message.content }}</p>
 
-  <p v-if="messages.length === 0" class="empty-state">
-    No messages yet.
-  </p>
-</section>
+                <div class="message-meta">
+                  <small>{{ readableActor(message.actor) }}</small>
+
+                  <div class="message-actions">
+                    <StarButton
+                      :active="message.important"
+                      :disabled="busyMessageTarget === message.url"
+                      :label="message.important ? 'Remove from starred messages' : 'Mark as starred'"
+                      @toggle="toggleImportant(message)"
+                    />
+
+                    <button
+                      type="button"
+                      class="reminder-button"
+                      :class="{ reminded: message.reminded }"
+                      :disabled="busyMessageTarget === message.url"
+                      @click="toggleReminder(message)"
+                      :aria-label="message.reminded ? 'Cancel reminder' : 'Remind me later'"
+                      :title="message.reminded ? 'Cancel reminder' : 'Remind me tomorrow'"
+                    >
+                      {{ message.reminded ? "⏰" : "🕘" }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </transition-group>
+
+          <p v-if="messages.length === 0" class="empty-state">
+            No messages yet.
+          </p>
+        </section>
 
         <form class="composer" @submit.prevent="sendMessage">
           <StarButton
             :active="draftImportant"
-            label="Mark next message as important"
+            label="Send this message as starred"
+            :disabled="sendingMessage"
             @toggle="draftImportant = !draftImportant"
           />
 
           <input
             v-model="draftMessage"
             placeholder="Write your message"
+            :disabled="sendingMessage"
           />
 
-          <button type="submit" class="send-button">Send</button>
+          <button type="submit" class="send-button" :disabled="sendingMessage">
+            {{ sendingMessage ? "..." : "Send" }}
+          </button>
         </form>
 
-        <p v-if="statusMessage" class="status-message">
+        <p
+          v-if="statusMessage"
+          class="status-message"
+          role="status"
+          aria-live="polite"
+        >
           {{ statusMessage }}
         </p>
       </section>

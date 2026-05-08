@@ -57,12 +57,19 @@ button:active {
   transform: scale(0.96);
 }
 
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 input,
 textarea {
   box-sizing: border-box;
   width: 100%;
   padding: 9px;
   margin-top: 5px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
 }
 
 textarea {
@@ -76,6 +83,10 @@ textarea {
   border-radius: 12px;
   overflow-wrap: anywhere;
   animation: fadeSlideIn 0.45s ease;
+}
+
+.actor-box {
+  font-size: 14px;
 }
 
 label {
@@ -112,7 +123,51 @@ label {
 .home-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.home-links {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.primary-nav-pill {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: #5b4bff;
+  border-radius: 999px;
+  padding: 8px 11px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(91, 75, 255, 0.25);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.primary-nav-pill:hover {
+  background: #493ad9;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(91, 75, 255, 0.3);
+}
+
+.reminder-pill {
+  background: #e85d75;
+  box-shadow: 0 4px 12px rgba(232, 93, 117, 0.25);
+}
+
+.reminder-pill:hover {
+  background: #cc425c;
+  box-shadow: 0 6px 16px rgba(232, 93, 117, 0.3);
+}
+
+.compact-note {
+  margin: 4px 0 0;
+  font-size: 13px;
 }
 
 .chat-layout {
@@ -123,7 +178,7 @@ label {
 
 .chat-header {
   display: grid;
-  grid-template-columns: 42px 1fr 68px;
+  grid-template-columns: 42px 1fr 76px;
   gap: 8px;
   align-items: center;
   border-bottom: 1px solid #e5e5e5;
@@ -155,25 +210,9 @@ label {
   color: #777;
 }
 
-.digest-link {
-  font-size: 13px;
-  background: #f2f2f2;
-  border-radius: 999px;
-  padding: 6px 8px;
-  text-align: center;
-  transition:
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-
-.digest-link:hover {
-  background: #e8e8e8;
-  transform: scale(1.04);
-}
-
 .messages {
   flex: 1;
-  padding: 14px 12px 92px;
+  padding: 14px 12px 106px;
   box-sizing: border-box;
 }
 
@@ -192,9 +231,11 @@ label {
   background: #eeeeee;
   border-radius: 16px;
   padding: 10px 12px;
+  border: 1px solid transparent;
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .message-bubble:hover {
@@ -202,8 +243,17 @@ label {
   box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 
+.message-bubble.important {
+  border-color: #8a6d00;
+  background: #fff8d8;
+}
+
 .message-row.mine .message-bubble {
   background: #dcdcdc;
+}
+
+.message-row.mine .message-bubble.important {
+  background: #fff2b6;
 }
 
 .message-bubble p {
@@ -221,7 +271,7 @@ label {
 
 .message-meta small {
   color: #666;
-  font-size: 10px;
+  font-size: 11px;
   max-width: 150px;
   overflow-wrap: anywhere;
 }
@@ -235,7 +285,7 @@ code {
   background: transparent;
   padding: 0;
   font-size: 24px;
-  color: #b5b5b5;
+  color: #707070;
   cursor: pointer;
   line-height: 1;
   min-width: 30px;
@@ -247,10 +297,11 @@ code {
 
 .star-button:hover {
   transform: scale(1.18);
+  background: transparent;
 }
 
 .star-button.starred {
-  color: #f0c84b;
+  color: #8a6d00;
   animation: starBurst 0.45s ease;
 }
 
@@ -297,13 +348,27 @@ code {
 }
 
 .empty-state,
-.status-message {
+.status-message,
+.loading-state,
+.signed-out-state {
   text-align: center;
   color: #666;
 }
 
 .status-message {
   animation: fadeSlideIn 0.35s ease;
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  width: min(92%, 390px);
+  box-sizing: border-box;
+  background: #222;
+  color: white;
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 2;
 }
 
 .digest-list {
@@ -328,9 +393,9 @@ code {
   margin: 0 0 6px;
 }
 
-.home-links {
-  display: flex;
-  gap: 6px;
+.page-note {
+  color: #666;
+  line-height: 1.35;
 }
 
 .message-actions {
@@ -353,11 +418,91 @@ code {
 
 .reminder-button:hover {
   transform: rotate(-10deg) scale(1.15);
+  background: transparent;
 }
 
 .reminder-button.reminded {
-  color: #6d4cff;
+  color: #5b4bff;
   animation: bellPop 0.4s ease;
+}
+
+.create-toggle {
+  width: 100%;
+  background: #222;
+  color: white;
+  border: none;
+  border-radius: 999px;
+}
+
+.create-toggle:hover {
+  background: #111;
+}
+
+.create-chat-form {
+  margin-top: 14px;
+}
+
+.recent-members {
+  margin-bottom: 14px;
+}
+
+.recent-members p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.member-chip {
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.card-actions a {
+  font-weight: 700;
+  color: #5b4bff;
+}
+
+.small-danger-button {
+  font-size: 12px;
+  color: #9a1f35;
+  background: #ffe8ed;
+  border: 1px solid #ffd0da;
+  border-radius: 999px;
+}
+
+.form-drop-enter-active,
+.form-drop-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.form-drop-enter-from,
+.form-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.message-list-enter-active,
+.message-list-leave-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.message-list-enter-from,
+.message-list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 @keyframes starBurst {

@@ -6,7 +6,11 @@ export default {
     },
     label: {
       type: String,
-      default: "Mark as important",
+      default: "Mark as starred",
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
     },
   },
 
@@ -18,6 +22,8 @@ export default {
       class="star-button"
       :class="{ starred: active }"
       :aria-label="label"
+      :title="label"
+      :disabled="disabled"
       @click="$emit('toggle')"
     >
       {{ active ? "★" : "☆" }}

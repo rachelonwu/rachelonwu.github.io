@@ -34,6 +34,8 @@ export default {
     const title = ref("");
     const memberActors = ref("");
     const statusMessage = ref("");
+    const showCreateChat = ref(false);
+    const isCreating = ref(false);
 
     const {
       objects: chatObjects,
@@ -53,6 +55,22 @@ export default {
         .sort((a, b) => b.published - a.published);
     });
 
+    const recentMembers = computed(() => {
+      if (!session.value) return [];
+
+      const members = new Set();
+
+      for (const chat of chats.value) {
+        for (const member of chat.members) {
+          if (member !== session.value.actor) {
+            members.add(member);
+          }
+        }
+      }
+
+      return Array.from(members).slice(0, 5);
+    });
+
     async function login() {
       await graffiti.login();
     }
@@ -68,6 +86,23 @@ export default {
         .split(",")
         .map((actor) => actor.trim())
         .filter((actor) => actor.length > 0);
+    }
+
+    function addRecentMember(actor) {
+      const currentMembers = parseMemberActors();
+
+      if (!currentMembers.includes(actor)) {
+        currentMembers.push(actor);
+      }
+
+      memberActors.value = currentMembers.join(", ");
+      showCreateChat.value = true;
+    }
+
+    function readableActor(actor) {
+      if (!actor) return "Unknown member";
+      if (actor === session.value?.actor) return "You";
+      return "Member " + actor.slice(-8);
     }
 
     async function createChat() {
@@ -88,6 +123,9 @@ export default {
       );
 
       try {
+        isCreating.value = true;
+        statusMessage.value = "Creating chat...";
+
         await graffiti.post(
           {
             value: {
@@ -106,11 +144,14 @@ export default {
 
         title.value = "";
         memberActors.value = "";
+        showCreateChat.value = false;
         statusMessage.value = "Chat created.";
         await poll();
       } catch (error) {
         console.error(error);
         statusMessage.value = "Could not create chat.";
+      } finally {
+        isCreating.value = false;
       }
     }
 
@@ -120,60 +161,118 @@ export default {
       memberActors,
       statusMessage,
       chats,
+      recentMembers,
       isFirstPoll,
+      showCreateChat,
+      isCreating,
       login,
       logout,
       createChat,
+      addRecentMember,
+      readableActor,
     };
   },
 
   template: `
     <main class="phone-shell">
       <header class="home-header">
-  <h1>Messages</h1>
+        <div>
+          <h1>Messages</h1>
+          <p class="page-note compact-note">
+            Keep track of starred messages and reminders.
+          </p>
+        </div>
 
-  <div class="home-links">
-    <router-link to="/digest" class="digest-link">All Digest</router-link>
-    <router-link to="/reminders" class="digest-link">Reminders</router-link>
-  </div>
-</header>
+        <div class="home-links">
+          <router-link
+            to="/digest"
+            class="primary-nav-pill"
+            title="View starred messages across all chats"
+          >
+            Starred
+          </router-link>
 
-      <section v-if="session === undefined">
-        <p>Loading Graffiti...</p>
+          <router-link
+            to="/reminders"
+            class="primary-nav-pill reminder-pill"
+            title="View messages you saved for later"
+          >
+            Reminders
+          </router-link>
+        </div>
+      </header>
+
+      <section v-if="session === undefined" class="loading-state">
+        <p>Loading account...</p>
       </section>
 
-      <section v-else-if="session === null">
+      <section v-else-if="session === null" class="signed-out-state">
         <p>You are not logged in.</p>
-        <button @click="login">Log in / Create Graffiti Actor</button>
+        <button @click="login">Log in / Create Account</button>
       </section>
 
       <section v-else>
         <p class="actor-box">
-          Your actor ID:
-          <code>{{ session.actor }}</code>
+          Signed in as <strong>{{ readableActor(session.actor) }}</strong>
         </p>
 
         <button @click="logout">Log out</button>
 
         <section class="new-chat">
-          <h2>Create Chat</h2>
+          <button
+            type="button"
+            class="create-toggle"
+            @click="showCreateChat = !showCreateChat"
+          >
+            {{ showCreateChat ? "Close Create Chat" : "+ Create Chat" }}
+          </button>
 
-          <label>
-            Chat name:
-            <input v-model="title" placeholder="Example: Project Group" />
-          </label>
+          <transition name="form-drop">
+            <div v-if="showCreateChat" class="create-chat-form">
+              <h2>Create Chat</h2>
 
-          <label>
-            Other members:
-            <textarea
-              v-model="memberActors"
-              placeholder="Paste other Graffiti actor IDs, separated by commas"
-            ></textarea>
-          </label>
+              <label>
+                Chat name:
+                <input v-model="title" placeholder="Example: Project Group" />
+              </label>
 
-          <button @click="createChat">Create Chat</button>
+              <label>
+                Members:
+                <textarea
+                  v-model="memberActors"
+                  placeholder="Paste member IDs, separated by commas"
+                ></textarea>
+              </label>
 
-          <p v-if="statusMessage" class="status-message">{{ statusMessage }}</p>
+              <section v-if="recentMembers.length > 0" class="recent-members">
+                <p>Recent members:</p>
+
+                <button
+                  v-for="actor in recentMembers"
+                  :key="actor"
+                  type="button"
+                  class="member-chip"
+                  @click="addRecentMember(actor)"
+                  :title="'Add ' + readableActor(actor)"
+                >
+                  {{ readableActor(actor) }}
+                </button>
+              </section>
+
+              <button @click="createChat" :disabled="isCreating">
+                {{ isCreating ? "Creating..." : "Create Chat" }}
+              </button>
+            </div>
+          </transition>
+
+          <p
+            v-if="statusMessage"
+            class="status-message"
+            role="status"
+            aria-live="polite"
+          >
+            {{ statusMessage }}
+          </p>
         </section>
 
         <section>
@@ -183,14 +282,14 @@ export default {
           <p v-else-if="chats.length === 0">No chats yet.</p>
 
           <router-link
-  v-for="chat in chats"
-  :key="chat.url"
-  class="chat-card"
-  :to="'/chat/' + encodeURIComponent(chat.channel)"
->
-  <h3>{{ chat.title }}</h3>
-  <p>{{ chat.members.length }} member(s)</p>
-</router-link>
+            v-for="chat in chats"
+            :key="chat.url"
+            class="chat-card"
+            :to="'/chat/' + encodeURIComponent(chat.channel)"
+          >
+            <h3>{{ chat.title }}</h3>
+            <p>{{ chat.members.length }} member(s)</p>
+          </router-link>
         </section>
       </section>
     </main>
