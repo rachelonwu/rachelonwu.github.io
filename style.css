@@ -42,6 +42,19 @@ button {
   background: #f2f2f2;
   border-radius: 8px;
   padding: 8px 10px;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  background: #ececec;
+}
+
+button:active {
+  transform: scale(0.96);
 }
 
 input,
@@ -62,6 +75,7 @@ textarea {
   padding: 12px;
   border-radius: 12px;
   overflow-wrap: anywhere;
+  animation: fadeSlideIn 0.45s ease;
 }
 
 label {
@@ -74,6 +88,15 @@ label {
   color: black;
   border-bottom: 1px solid #e5e5e5;
   padding: 14px 0;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+  animation: fadeSlideIn 0.35s ease;
+}
+
+.chat-card:hover {
+  transform: translateX(4px);
+  background: #fafafa;
 }
 
 .chat-card h3 {
@@ -106,6 +129,7 @@ label {
   border-bottom: 1px solid #e5e5e5;
   padding: 12px;
   box-sizing: border-box;
+  animation: fadeDown 0.35s ease;
 }
 
 .back-link {
@@ -137,6 +161,14 @@ label {
   border-radius: 999px;
   padding: 6px 8px;
   text-align: center;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.digest-link:hover {
+  background: #e8e8e8;
+  transform: scale(1.04);
 }
 
 .messages {
@@ -148,6 +180,7 @@ label {
 .message-row {
   display: flex;
   margin-bottom: 10px;
+  animation: messagePop 0.3s ease;
 }
 
 .message-row.mine {
@@ -159,6 +192,14 @@ label {
   background: #eeeeee;
   border-radius: 16px;
   padding: 10px 12px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.message-bubble:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 
 .message-row.mine .message-bubble {
@@ -199,10 +240,18 @@ code {
   line-height: 1;
   min-width: 30px;
   min-height: 30px;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease;
+}
+
+.star-button:hover {
+  transform: scale(1.18);
 }
 
 .star-button.starred {
   color: #f0c84b;
+  animation: starBurst 0.45s ease;
 }
 
 .composer {
@@ -229,6 +278,15 @@ code {
   background: #f1f1f1;
   border-radius: 999px;
   padding: 11px 13px;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.composer input:focus {
+  outline: none;
+  background: #ececec;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
 }
 
 .send-button {
@@ -244,6 +302,10 @@ code {
   color: #666;
 }
 
+.status-message {
+  animation: fadeSlideIn 0.35s ease;
+}
+
 .digest-list {
   padding: 12px;
 }
@@ -251,11 +313,21 @@ code {
 .digest-card {
   border-bottom: 1px solid #e5e5e5;
   padding: 14px 0;
+  animation: fadeSlideIn 0.35s ease;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.digest-card:hover {
+  transform: translateY(-2px);
+  background: #fafafa;
 }
 
 .digest-card p {
   margin: 0 0 6px;
 }
+
 .home-links {
   display: flex;
   gap: 6px;
@@ -274,8 +346,80 @@ code {
   font-size: 20px;
   cursor: pointer;
   line-height: 1;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease;
+}
+
+.reminder-button:hover {
+  transform: rotate(-10deg) scale(1.15);
 }
 
 .reminder-button.reminded {
   color: #6d4cff;
+  animation: bellPop 0.4s ease;
+}
+
+@keyframes starBurst {
+  0% {
+    transform: scale(0.6) rotate(-12deg);
+  }
+
+  60% {
+    transform: scale(1.35) rotate(10deg);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bellPop {
+  0% {
+    transform: scale(0.7);
+  }
+
+  55% {
+    transform: scale(1.25);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes messagePop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

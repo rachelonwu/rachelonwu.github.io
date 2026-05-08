@@ -257,43 +257,45 @@ export default {
         </header>
 
         <section class="messages">
-          <article
-            v-for="message in messages"
-            :key="message.url"
-            class="message-row"
-            :class="{ mine: message.actor === session.actor }"
-          >
-            <div class="message-bubble">
-              <p>{{ message.content }}</p>
+  <transition-group name="message-list">
+    <article
+      v-for="message in messages"
+      :key="message.url"
+      class="message-row"
+      :class="{ mine: message.actor === session.actor }"
+    >
+      <div class="message-bubble">
+        <p>{{ message.content }}</p>
 
-              <div class="message-meta">
-                <small><code>{{ message.actor }}</code></small>
+        <div class="message-meta">
+          <small><code>{{ message.actor }}</code></small>
 
-                <div class="message-actions">
-                  <StarButton
-                    :active="message.important"
-                    label="Mark message as important"
-                    @toggle="markImportant(message)"
-                  />
+          <div class="message-actions">
+            <StarButton
+              :active="message.important"
+              label="Mark message as important"
+              @toggle="markImportant(message)"
+            />
 
-                  <button
-                    type="button"
-                    class="reminder-button"
-                    :class="{ reminded: message.reminded }"
-                    @click="remindLater(message)"
-                    aria-label="Remind me later"
-                  >
-                    {{ message.reminded ? "⏰" : "🕘" }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </article>
+            <button
+              type="button"
+              class="reminder-button"
+              :class="{ reminded: message.reminded }"
+              @click="remindLater(message)"
+              aria-label="Remind me later"
+            >
+              {{ message.reminded ? "⏰" : "🕘" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  </transition-group>
 
-          <p v-if="messages.length === 0" class="empty-state">
-            No messages yet.
-          </p>
-        </section>
+  <p v-if="messages.length === 0" class="empty-state">
+    No messages yet.
+  </p>
+</section>
 
         <form class="composer" @submit.prevent="sendMessage">
           <StarButton

@@ -183,14 +183,14 @@ export default {
           <p v-else-if="chats.length === 0">No chats yet.</p>
 
           <router-link
-            v-for="chat in chats"
-            :key="chat.url"
-            class="chat-card"
-            :to="'/chat/' + encodeURIComponent(chat.channel)"
-          >
-            <h3>{{ chat.title }}</h3>
-            <p>{{ chat.members.length }} member(s)</p>
-          </router-link>
+  v-for="chat in chats"
+  :key="chat.url"
+  class="chat-card"
+  :to="'/chat/' + encodeURIComponent(chat.channel)"
+>
+  <h3>{{ chat.title }}</h3>
+  <p>{{ chat.members.length }} member(s)</p>
+</router-link>
         </section>
       </section>
     </main>
