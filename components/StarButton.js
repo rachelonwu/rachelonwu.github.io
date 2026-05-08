@@ -4,10 +4,12 @@ export default {
       type: Boolean,
       required: true,
     },
+
     label: {
       type: String,
       default: "Mark as starred",
     },
+
     disabled: {
       type: Boolean,
       default: false,

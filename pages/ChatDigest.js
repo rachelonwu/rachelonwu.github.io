@@ -4,6 +4,7 @@ import {
 } from "@graffiti-garden/wrapper-vue";
 
 import { computed } from "vue";
+import ActorName from "../components/ActorName.js";
 
 const eventSchema = {
   properties: {
@@ -19,6 +20,9 @@ const eventSchema = {
 };
 
 export default {
+  components: {
+  ActorName,
+},
   props: ["chatId"],
 
   setup(props) {
@@ -96,7 +100,14 @@ export default {
           class="digest-card"
         >
           <p>{{ message.value.content }}</p>
-          <small>{{ readableActor(message.actor) }}</small>
+          <small>
+  <span v-if="message.actor === session.actor">You</span>
+  <ActorName
+    v-else
+    :actor="message.actor"
+    fallback="Member"
+  />
+</small>
         </article>
 
         <p v-if="importantMessages.length === 0" class="empty-state">

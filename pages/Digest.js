@@ -5,6 +5,7 @@ import {
 
 import { computed } from "vue";
 import { CHAT_INDEX_CHANNEL } from "../constants.js";
+import ActorName from "../components/ActorName.js";
 
 const chatSchema = {
   properties: {
@@ -39,6 +40,9 @@ const eventSchema = {
 };
 
 export default {
+  components: {
+  ActorName,
+},
   setup() {
     const session = useGraffitiSession();
 
@@ -95,16 +99,10 @@ export default {
         .sort((a, b) => b.published - a.published);
     });
 
-    function readableActor(actor) {
-      if (!actor) return "Unknown sender";
-      if (actor === session.value?.actor) return "You";
-      return "Member " + actor.slice(-8);
-    }
 
     return {
       session,
       digestItems,
-      readableActor,
     };
   },
 
@@ -135,7 +133,14 @@ export default {
         >
           <strong>{{ item.chatTitle }}</strong>
           <p>{{ item.content }}</p>
-          <small>{{ readableActor(item.actor) }}</small>
+          <small>
+  <span v-if="item.actor === session.actor">You</span>
+  <ActorName
+    v-else
+    :actor="item.actor"
+    fallback="Member"
+  />
+</small>
           <br />
           <router-link
             v-if="item.chatChannel"
