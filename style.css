@@ -25,7 +25,10 @@ textarea {
 
 h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 h2 {
@@ -235,7 +238,8 @@ label {
 }
 
 .chat-title-area h1 {
-  font-size: 17px;
+  font-size: 30px;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -512,15 +516,25 @@ code {
 
 .create-toggle {
   width: 100%;
-  background: #222;
+  background: #111111;
   color: white;
   border: none;
   border-radius: 999px;
+  font-weight: 700;
+  padding: 12px 16px;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .create-toggle:hover {
-  background: #111;
+  background: #2a2a2a;
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.28);
 }
+
 
 .create-chat-form {
   margin-top: 14px;
@@ -708,4 +722,39 @@ code {
 
 .digest-header .home-button:last-child {
   justify-self: end;
+}
+
+.home-header h1,
+.digest-header h1,
+.reminders-header h1,
+.chat-title-area h1 {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #111;
+}
+
+.actor-box {
+  margin-bottom: 18px;
+}
+
+.phone-shell > button {
+  margin-bottom: 28px;
+}
+
+.new-chat {
+  margin-bottom: 34px;
+}
+
+.new-chat .create-toggle {
+  margin-bottom: 8px;
+}
+
+.create-chat-form {
+  margin-top: 18px;
+}
+
+.phone-shell h2 {
+  margin-top: 10px;
+  margin-bottom: 16px;
 }

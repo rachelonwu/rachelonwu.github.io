@@ -370,9 +370,7 @@ export default {
 
           <h1>Messages</h1>
 
-          <p class="page-note compact-note">
-            Keep track of starred messages and reminders.
-          </p>
+          
 
         </div>
 
