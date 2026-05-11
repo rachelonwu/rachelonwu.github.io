@@ -12,7 +12,7 @@ textarea {
 }
 
 .phone-shell {
-  width: min(100%, 430px);
+  width: min(100%, 760px);
   min-height: 100vh;
   margin: 0 auto;
   background: white;
@@ -74,6 +74,7 @@ textarea {
 
 textarea {
   min-height: 70px;
+  resize: vertical;
 }
 
 .actor-box,
@@ -135,13 +136,16 @@ label {
 }
 
 .primary-nav-pill {
+  display: inline-block;
   font-size: 13px;
   font-weight: 700;
   color: #1f1600;
   background: #e0a800;
+  border: none;
   border-radius: 999px;
   padding: 8px 11px;
   text-align: center;
+  text-decoration: none;
   box-shadow: 0 4px 12px rgba(122, 90, 0, 0.25);
   transition:
     background 0.18s ease,
@@ -156,6 +160,37 @@ label {
   box-shadow: 0 6px 16px rgba(122, 90, 0, 0.3);
 }
 
+.home-button,
+.digest-link,
+.signed-out-state a,
+.empty-state a {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: #111111;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 11px;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.home-button:hover,
+.digest-link:hover,
+.signed-out-state a:hover,
+.empty-state a:hover {
+  background: #2a2a2a;
+  color: white;
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
 .reminder-pill {
   color: white;
   background: #5b4bff;
@@ -166,6 +201,7 @@ label {
   background: #493ad9;
   color: white;
 }
+
 .compact-note {
   margin: 4px 0 0;
   font-size: 13px;
@@ -211,6 +247,33 @@ label {
   color: #777;
 }
 
+.member-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eeeeee;
+  align-items: center;
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #f2f2f2;
+  padding: 5px 8px;
+}
+
+.remove-member-button {
+  border: none;
+  background: transparent;
+  color: #9a1f35;
+  padding: 0 2px;
+}
+
 .messages {
   flex: 1;
   padding: 14px 12px 106px;
@@ -228,11 +291,12 @@ label {
 }
 
 .message-bubble {
-  max-width: 76%;
+  max-width: 78%;
   background: #eeeeee;
   border-radius: 16px;
   padding: 10px 12px;
   border: 1px solid transparent;
+  overflow-wrap: anywhere;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -241,7 +305,7 @@ label {
 
 .message-bubble:hover {
   transform: translateY(-2px);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
 
 .message-bubble.important {
@@ -260,6 +324,8 @@ label {
 .message-bubble p {
   margin: 0;
   font-size: 15px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .message-meta {
@@ -273,7 +339,7 @@ label {
 .message-meta small {
   color: #666;
   font-size: 11px;
-  max-width: 150px;
+  max-width: 250px;
   overflow-wrap: anywhere;
 }
 
@@ -311,34 +377,37 @@ code {
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: min(100%, 430px);
+  width: min(100%, 760px);
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 56px;
   gap: 8px;
-  align-items: center;
+  align-items: end;
   background: white;
   border-top: 1px solid #e5e5e5;
   padding: 10px 12px;
   box-sizing: border-box;
 }
 
-.composer input {
+.composer textarea {
   width: 100%;
   min-width: 0;
+  min-height: 42px;
+  max-height: 130px;
   margin: 0;
   border: none;
   background: #f1f1f1;
-  border-radius: 999px;
+  border-radius: 18px;
   padding: 11px 13px;
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+  resize: vertical;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-.composer input:focus {
+.composer textarea:focus {
   outline: none;
   background: #ececec;
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
 }
 
 .send-button {
@@ -362,7 +431,7 @@ code {
   left: 50%;
   bottom: 64px;
   transform: translateX(-50%);
-  width: min(92%, 390px);
+  width: min(92%, 680px);
   box-sizing: border-box;
   background: #222;
   color: white;
@@ -392,6 +461,8 @@ code {
 
 .digest-card p {
   margin: 0 0 6px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .page-note {
@@ -427,6 +498,18 @@ code {
   animation: bellPop 0.4s ease;
 }
 
+.reminder-picker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.reminder-picker input {
+  margin-top: 0;
+  font-size: 12px;
+}
+
 .create-toggle {
   width: 100%;
   background: #222;
@@ -453,12 +536,6 @@ code {
   color: #666;
 }
 
-.member-chip {
-  margin: 0 6px 6px 0;
-  border-radius: 999px;
-  font-size: 12px;
-}
-
 .card-actions {
   display: flex;
   align-items: center;
@@ -472,12 +549,54 @@ code {
   color: #5b4bff;
 }
 
+.small-copy-button {
+  font-size: 12px;
+  border-radius: 999px;
+}
+
 .small-danger-button {
   font-size: 12px;
   color: #9a1f35;
   background: #ffe8ed;
   border: 1px solid #ffd0da;
   border-radius: 999px;
+}
+
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.tutorial-modal {
+  width: min(92%, 380px);
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+  position: relative;
+  animation: messagePop 0.25s ease;
+}
+
+.tutorial-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  padding: 0 6px;
+}
+
+.tutorial-progress {
+  margin: 0 0 8px;
+  color: #777;
+  font-size: 12px;
 }
 
 .form-drop-enter-active,
@@ -568,4 +687,25 @@ code {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.digest-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.digest-header h1 {
+  text-align: center;
+  margin: 0;
+}
+
+.digest-header .home-button:first-child {
+  justify-self: start;
+}
+
+.digest-header .home-button:last-child {
+  justify-self: end;
 }

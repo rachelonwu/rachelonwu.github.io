@@ -21,8 +21,9 @@ const eventSchema = {
 
 export default {
   components: {
-  ActorName,
-},
+    ActorName,
+  },
+
   props: ["chatId"],
 
   setup(props) {
@@ -45,7 +46,10 @@ export default {
         )
         .sort((a, b) => a.value.published - b.value.published);
 
-      if (matching.length === 0) return false;
+      if (matching.length === 0) {
+        return false;
+      }
+
       return matching[matching.length - 1].value.activity === "Star";
     }
 
@@ -56,34 +60,49 @@ export default {
         .sort((a, b) => b.value.published - a.value.published);
     });
 
-    function readableActor(actor) {
-      if (!actor) return "Unknown sender";
-      if (actor === session.value?.actor) return "You";
-      return "Member " + actor.slice(-8);
+    function formatTime(timestamp) {
+      return new Date(timestamp).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
     }
 
     return {
       session,
       importantMessages,
-      readableActor,
+      formatTime,
     };
   },
 
   template: `
     <main class="phone-shell">
-      <header class="chat-topbar digest-topbar">
-        <router-link
-          :to="'/chat/' + encodeURIComponent(chatId)"
-          class="back-link"
-          title="Back to chat"
-        >
-          ‹
-        </router-link>
 
-        <h1>Chat Starred</h1>
-      </header>
+      <header class="digest-header">
 
-      <p class="page-note">Starred messages from this chat only.</p>
+  <router-link
+    :to="'/chat/' + encodeURIComponent(chatId)"
+    class="home-button"
+    title="Back to chat"
+  >
+    Back to Chat
+  </router-link>
+
+  <h1>Starred Messages</h1>
+
+  <router-link
+    to="/"
+    class="home-button"
+  >
+    Home
+  </router-link>
+
+</header>
+
+      <p class="page-note">
+        Starred messages from this chat only.
+      </p>
 
       <section v-if="session === undefined" class="loading-state">
         <p>Loading starred messages...</p>
@@ -91,29 +110,50 @@ export default {
 
       <section v-else-if="session === null" class="signed-out-state">
         <p>Log in to view this chat's starred messages.</p>
+
+        <router-link
+          to="/"
+          class="home-button"
+        >
+          Home
+        </router-link>
       </section>
 
       <section v-else>
+
         <article
           v-for="message in importantMessages"
           :key="message.url"
           class="digest-card"
         >
+
           <p>{{ message.value.content }}</p>
+
           <small>
-  <span v-if="message.actor === session.actor">You</span>
-  <ActorName
-    v-else
-    :actor="message.actor"
-    fallback="Member"
-  />
-</small>
+            <span v-if="message.actor === session.actor">
+              You
+            </span>
+
+            <ActorName
+              v-else
+              :actor="message.actor"
+              fallback="Member"
+            />
+
+            · {{ formatTime(message.value.published) }}
+          </small>
+
         </article>
 
-        <p v-if="importantMessages.length === 0" class="empty-state">
+        <p
+          v-if="importantMessages.length === 0"
+          class="empty-state"
+        >
           No starred messages in this chat yet.
         </p>
+
       </section>
+
     </main>
   `,
 };

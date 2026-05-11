@@ -1,3 +1,4 @@
+import { computed } from "vue";
 import { useGraffitiActorToHandle } from "@graffiti-garden/wrapper-vue";
 
 export default {
@@ -16,14 +17,27 @@ export default {
   setup(props) {
     const { handle } = useGraffitiActorToHandle(() => props.actor);
 
+    const displayName = computed(() => {
+      const name = handle.value || props.actor || props.fallback;
+
+      if (name.startsWith("did:")) {
+        return props.fallback;
+      }
+
+      return name
+        .replace(".graffiti.actor", "")
+        .replace("https://", "")
+        .replace("http://", "");
+    });
+
     return {
-      handle,
+      displayName,
     };
   },
 
   template: `
     <span>
-      {{ handle || fallback }}
+      {{ displayName }}
     </span>
   `,
 };

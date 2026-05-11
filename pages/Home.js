@@ -4,40 +4,19 @@ import {
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 
-import { computed, ref } from "vue";
-
+import { computed, ref, watch } from "vue";
 import { CHAT_INDEX_CHANNEL } from "../constants.js";
-
 import ActorName from "../components/ActorName.js";
 
 const chatSchema = {
   properties: {
     value: {
       properties: {
-        activity: { const: "Create" },
-
-        type: { const: "Chat" },
-
-        title: { type: "string" },
-
-        channel: { type: "string" },
-
-        members: {
-          type: "array",
-          items: { type: "string" },
+        activity: {
+          enum: ["Create", "AddMember", "RemoveMember", "DeleteChat"],
         },
-
-        published: { type: "number" },
       },
-
-      required: [
-        "activity",
-        "type",
-        "title",
-        "channel",
-        "members",
-        "published",
-      ],
+      required: ["activity"],
     },
   },
 };
@@ -49,18 +28,44 @@ export default {
 
   setup() {
     const graffiti = useGraffiti();
-
     const session = useGraffitiSession();
 
     const title = ref("");
-
-    const memberActors = ref("");
-
     const statusMessage = ref("");
-
     const showCreateChat = ref(false);
-
     const isCreating = ref(false);
+
+    const showTutorial = ref(false);
+    const tutorialStep = ref(0);
+
+    const tutorialSlides = [
+      {
+        title: "Welcome!",
+        body: "This app helps you keep important messages from getting buried in group chats.",
+      },
+      {
+        title: "Star messages",
+        body: "Tap the star next to a message to mark it as important.",
+      },
+      {
+        title: "Review starred messages",
+        body: "Use the Starred page to quickly review important messages across your chats.",
+      },
+      {
+        title: "Set reminders",
+        body: "Tap the clock icon on a message to choose a time to revisit it.",
+      },
+      {
+        title: "Invite people",
+        body: "Copy a chat invite link and send it to someone. When they open it, they can join the chat.",
+      },
+    ];
+
+    const tutorialStorageKey = computed(() => {
+      return session.value
+        ? `important-message-chat-tutorial-seen-${session.value.actor}`
+        : "important-message-chat-tutorial-seen";
+    });
 
     const {
       objects: chatObjects,
@@ -69,42 +74,114 @@ export default {
     } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
       chatSchema,
-      session
+      session,
+      true
     );
 
-    const chats = computed(() => {
-      return chatObjects.value
-        .map((object) => ({
-          url: object.url,
+    watch(
+      session,
+      (currentSession) => {
+        if (
+          currentSession &&
+          !localStorage.getItem(
+            `important-message-chat-tutorial-seen-${currentSession.actor}`
+          )
+        ) {
+          tutorialStep.value = 0;
+          showTutorial.value = true;
+        }
+      },
+      { immediate: true }
+    );
 
-          title: object.value.title,
+    function closeTutorial() {
+      showTutorial.value = false;
 
-          channel: object.value.channel,
+      localStorage.setItem(
+        tutorialStorageKey.value,
+        "true"
+      );
+    }
 
-          members: object.value.members,
+    function nextTutorialStep() {
+      if (tutorialStep.value < tutorialSlides.length - 1) {
+        tutorialStep.value += 1;
+      } else {
+        closeTutorial();
+      }
+    }
 
-          published: object.value.published,
-        }))
+    function membersForChannel(channel) {
+      const createEvent = chatObjects.value.find(
+        (object) =>
+          object.value.activity === "Create" &&
+          object.value.channel === channel
+      );
 
-        .sort((a, b) => b.published - a.published);
-    });
-
-    const recentMembers = computed(() => {
-      if (!session.value) {
+      if (!createEvent) {
         return [];
       }
 
-      const members = new Set();
+      let members = [...createEvent.value.members];
 
-      for (const chat of chats.value) {
-        for (const member of chat.members) {
-          if (member !== session.value.actor) {
-            members.add(member);
-          }
+      const memberEvents = chatObjects.value
+        .filter(
+          (object) =>
+            object.value.channel === channel &&
+            (object.value.activity === "AddMember" ||
+              object.value.activity === "RemoveMember")
+        )
+        .sort((a, b) => a.value.published - b.value.published);
+
+      for (const event of memberEvents) {
+        if (event.value.activity === "AddMember") {
+          members = Array.from(
+            new Set([...members, event.value.member])
+          );
+        }
+
+        if (event.value.activity === "RemoveMember") {
+          members = members.filter(
+            (member) => member !== event.value.member
+          );
         }
       }
 
-      return Array.from(members).slice(0, 5);
+      return members;
+    }
+
+    const chats = computed(() => {
+      const deletedChannels = new Set(
+        chatObjects.value
+          .filter(
+            (object) =>
+              object.value.activity === "DeleteChat"
+          )
+          .map((object) => object.value.channel)
+      );
+
+      return chatObjects.value
+        .filter(
+          (object) =>
+            object.value.activity === "Create"
+        )
+        .filter(
+          (object) =>
+            !deletedChannels.has(object.value.channel)
+        )
+        .map((object) => ({
+          url: object.url,
+          title: object.value.title,
+          channel: object.value.channel,
+          members: membersForChannel(
+            object.value.channel
+          ),
+          published: object.value.published,
+        }))
+        .filter((chat) =>
+          chat.members.includes(session.value?.actor)
+        )
+        .sort((a, b) => b.published - a.published);
     });
 
     async function login() {
@@ -117,25 +194,16 @@ export default {
       }
     }
 
-    function parseMemberActors() {
-      return memberActors.value
-        .split(",")
-
-        .map((actor) => actor.trim())
-
-        .filter((actor) => actor.length > 0);
+    function inviteLink(chat) {
+      return `${window.location.origin}${window.location.pathname}#/chat/${encodeURIComponent(chat.channel)}`;
     }
 
-    function addRecentMember(actor) {
-      const currentMembers = parseMemberActors();
+    async function copyInviteLink(chat) {
+      await navigator.clipboard.writeText(
+        inviteLink(chat)
+      );
 
-      if (!currentMembers.includes(actor)) {
-        currentMembers.push(actor);
-      }
-
-      memberActors.value = currentMembers.join(", ");
-
-      showCreateChat.value = true;
+      statusMessage.value = "Invite link copied.";
     }
 
     async function createChat() {
@@ -155,12 +223,7 @@ export default {
         return;
       }
 
-      const members = Array.from(
-        new Set([
-          session.value.actor,
-          ...parseMemberActors(),
-        ])
-      );
+      const members = [session.value.actor];
 
       try {
         isCreating.value = true;
@@ -171,29 +234,20 @@ export default {
           {
             value: {
               activity: "Create",
-
               type: "Chat",
-
               title: title.value.trim(),
-
               channel: crypto.randomUUID(),
-
               members,
-
               published: Date.now(),
             },
 
             channels: [CHAT_INDEX_CHANNEL],
-
-            allowed: members,
           },
 
           session.value
         );
 
         title.value = "";
-
-        memberActors.value = "";
 
         showCreateChat.value = false;
 
@@ -210,37 +264,105 @@ export default {
       }
     }
 
+    async function deleteChat(chat) {
+      if (!session.value) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Delete "${chat.title}"?`
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await graffiti.post(
+        {
+          value: {
+            activity: "DeleteChat",
+            type: "Chat",
+            channel: chat.channel,
+            published: Date.now(),
+          },
+
+          channels: [CHAT_INDEX_CHANNEL],
+          allowed: chat.members,
+        },
+
+        session.value
+      );
+
+      statusMessage.value = "Chat deleted.";
+
+      await poll();
+    }
+
     return {
       session,
-
       title,
-
-      memberActors,
-
       statusMessage,
-
       chats,
-
-      recentMembers,
-
       isFirstPoll,
-
       showCreateChat,
-
       isCreating,
-
+      showTutorial,
+      tutorialStep,
+      tutorialSlides,
       login,
-
       logout,
-
       createChat,
-
-      addRecentMember,
+      inviteLink,
+      copyInviteLink,
+      deleteChat,
+      nextTutorialStep,
+      closeTutorial,
     };
   },
 
   template: `
     <main class="phone-shell">
+
+      <section
+        v-if="showTutorial"
+        class="tutorial-backdrop"
+      >
+        <article class="tutorial-modal">
+
+          <button
+            type="button"
+            class="tutorial-close"
+            @click="closeTutorial"
+          >
+            ×
+          </button>
+
+          <p class="tutorial-progress">
+            {{ tutorialStep + 1 }} / {{ tutorialSlides.length }}
+          </p>
+
+          <h2>
+            {{ tutorialSlides[tutorialStep].title }}
+          </h2>
+
+          <p>
+            {{ tutorialSlides[tutorialStep].body }}
+          </p>
+
+          <button
+            type="button"
+            class="create-toggle"
+            @click="nextTutorialStep"
+          >
+            {{
+              tutorialStep === tutorialSlides.length - 1
+                ? "Start using app"
+                : "Next"
+            }}
+          </button>
+
+        </article>
+      </section>
 
       <header class="home-header">
 
@@ -259,7 +381,6 @@ export default {
           <router-link
             to="/digest"
             class="primary-nav-pill"
-            title="View starred messages across all chats"
           >
             Starred
           </router-link>
@@ -267,7 +388,6 @@ export default {
           <router-link
             to="/reminders"
             class="primary-nav-pill reminder-pill"
-            title="View messages you saved for later"
           >
             Reminders
           </router-link>
@@ -299,10 +419,12 @@ export default {
         <p class="actor-box">
           Signed in as
           <strong>
+
             <ActorName
               :actor="session.actor"
               fallback="You"
             />
+
           </strong>
         </p>
 
@@ -342,37 +464,9 @@ export default {
                 />
               </label>
 
-              <label>
-                Members:
-
-                <textarea
-                  v-model="memberActors"
-                  placeholder="Paste member IDs, separated by commas"
-                ></textarea>
-              </label>
-
-              <section
-                v-if="recentMembers.length > 0"
-                class="recent-members"
-              >
-
-                <p>Recent members:</p>
-
-                <button
-                  v-for="actor in recentMembers"
-                  :key="actor"
-                  type="button"
-                  class="member-chip"
-                  @click="addRecentMember(actor)"
-                  title="Add recent member"
-                >
-                  <ActorName
-                    :actor="actor"
-                    fallback="Member"
-                  />
-                </button>
-
-              </section>
+              <p class="page-note">
+                After creating the chat, copy its invite link and send it to anyone you want to join.
+              </p>
 
               <button
                 @click="createChat"
@@ -414,18 +508,45 @@ export default {
             No chats yet.
           </p>
 
-          <router-link
+          <article
             v-for="chat in chats"
             :key="chat.url"
             class="chat-card"
-            :to="'/chat/' + encodeURIComponent(chat.channel)"
           >
-            <h3>{{ chat.title }}</h3>
 
-            <p>
-              {{ chat.members.length }} member(s)
-            </p>
-          </router-link>
+            <router-link
+              :to="'/chat/' + encodeURIComponent(chat.channel)"
+            >
+
+              <h3>{{ chat.title }}</h3>
+
+              <p>
+                {{ chat.members.length }} member(s)
+              </p>
+
+            </router-link>
+
+            <div class="card-actions">
+
+              <button
+                type="button"
+                class="small-copy-button"
+                @click="copyInviteLink(chat)"
+              >
+                Copy invite link
+              </button>
+
+              <button
+                type="button"
+                class="small-danger-button"
+                @click="deleteChat(chat)"
+              >
+                Delete chat
+              </button>
+
+            </div>
+
+          </article>
 
         </section>
 

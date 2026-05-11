@@ -4,10 +4,8 @@ import {
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 
-import { computed, ref } from "vue";
-
+import { computed, ref, watch } from "vue";
 import { CHAT_INDEX_CHANNEL } from "../constants.js";
-
 import StarButton from "../components/StarButton.js";
 import ActorName from "../components/ActorName.js";
 
@@ -15,27 +13,11 @@ const chatSchema = {
   properties: {
     value: {
       properties: {
-        activity: { const: "Create" },
-        type: { const: "Chat" },
-        title: { type: "string" },
-        channel: { type: "string" },
-
-        members: {
-          type: "array",
-          items: { type: "string" },
+        activity: {
+          enum: ["Create", "AddMember", "RemoveMember", "DeleteChat"],
         },
-
-        published: { type: "number" },
       },
-
-      required: [
-        "activity",
-        "type",
-        "title",
-        "channel",
-        "members",
-        "published",
-      ],
+      required: ["activity"],
     },
   },
 };
@@ -45,16 +27,9 @@ const chatEventSchema = {
     value: {
       properties: {
         activity: {
-          enum: [
-            "Send",
-            "Star",
-            "Unstar",
-            "Remind",
-            "CancelReminder",
-          ],
+          enum: ["Send", "Star", "Unstar", "Remind", "CancelReminder"],
         },
       },
-
       required: ["activity"],
     },
   },
@@ -70,22 +45,23 @@ export default {
 
   setup(props) {
     const graffiti = useGraffiti();
-
     const session = useGraffitiSession();
 
     const draftMessage = ref("");
     const draftImportant = ref(false);
-
     const statusMessage = ref("");
-
     const sendingMessage = ref(false);
-
     const busyMessageTarget = ref("");
 
-    const { objects: chatObjects } = useGraffitiDiscover(
+    const reminderPickerTarget = ref("");
+    const reminderDrafts = ref({});
+    const localStarOverrides = ref({});
+
+    const { objects: chatObjects, poll: pollChats } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
       chatSchema,
-      session
+      session,
+      true
     );
 
     const { objects: chatEvents, poll: pollEvents } =
@@ -96,10 +72,90 @@ export default {
         true
       );
 
-    const chat = computed(() => {
+    const createChatObject = computed(() => {
       return chatObjects.value.find(
-        (object) => object.value.channel === props.chatId
+        (object) =>
+          object.value.activity === "Create" &&
+          object.value.channel === props.chatId
       );
+    });
+
+    const chatDeleted = computed(() => {
+      return chatObjects.value.some(
+        (object) =>
+          object.value.activity === "DeleteChat" &&
+          object.value.channel === props.chatId
+      );
+    });
+
+    const chatMembers = computed(() => {
+      if (!createChatObject.value) return [];
+
+      let members = [...createChatObject.value.value.members];
+
+      const memberEvents = chatObjects.value
+        .filter(
+          (object) =>
+            object.value.channel === props.chatId &&
+            (object.value.activity === "AddMember" ||
+              object.value.activity === "RemoveMember")
+        )
+        .sort((a, b) => a.value.published - b.value.published);
+
+      for (const event of memberEvents) {
+        if (event.value.activity === "AddMember") {
+          members = Array.from(new Set([...members, event.value.member]));
+        }
+
+        if (event.value.activity === "RemoveMember") {
+          members = members.filter((member) => member !== event.value.member);
+        }
+      }
+
+      return members;
+    });
+
+    const chat = computed(() => {
+      if (!createChatObject.value || chatDeleted.value) return undefined;
+
+      return {
+        ...createChatObject.value,
+        value: {
+          ...createChatObject.value.value,
+          members: chatMembers.value,
+        },
+      };
+    });
+
+    const isMember = computed(() => {
+      return session.value && chatMembers.value.includes(session.value.actor);
+    });
+
+    watch([session, chat], async () => {
+      if (!session.value || !chat.value || isMember.value) return;
+
+      try {
+        await graffiti.post(
+          {
+            value: {
+              activity: "AddMember",
+              type: "ChatMembership",
+              channel: props.chatId,
+              member: session.value.actor,
+              published: Date.now(),
+            },
+
+            channels: [CHAT_INDEX_CHANNEL],
+          },
+
+          session.value
+        );
+
+        await pollChats();
+      } catch (error) {
+        console.error(error);
+        statusMessage.value = "Could not join chat.";
+      }
     });
 
     const starEvents = computed(() => {
@@ -124,9 +180,7 @@ export default {
         .filter((event) => event.value.target === target)
         .sort((a, b) => a.value.published - b.value.published);
 
-      if (matching.length === 0) {
-        return false;
-      }
+      if (matching.length === 0) return false;
 
       return matching[matching.length - 1].value.activity === activeActivity;
     }
@@ -134,39 +188,56 @@ export default {
     const messages = computed(() => {
       return chatEvents.value
         .filter((object) => object.value.activity === "Send")
-
-        .map((object) => ({
-          url: object.url,
-
-          actor: object.actor,
-
-          content: object.value.content,
-
-          published: object.value.published,
-
-          important: hasLatestEvent(
+        .map((object) => {
+          const serverImportant = hasLatestEvent(
             starEvents.value,
             object.url,
             "Star"
-          ),
+          );
 
-          reminded: hasLatestEvent(
-            reminderEvents.value,
-            object.url,
-            "Remind"
-          ),
-        }))
+          return {
+            url: object.url,
+            actor: object.actor,
+            content: object.value.content,
+            published: object.value.published,
 
+            important:
+              localStarOverrides.value[object.url] ??
+              serverImportant,
+
+            reminded: hasLatestEvent(
+              reminderEvents.value,
+              object.url,
+              "Remind"
+            ),
+          };
+        })
         .sort((a, b) => a.published - b.published);
     });
+
+    function formatTime(timestamp) {
+      return new Date(timestamp).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    function inviteLink() {
+      return `${window.location.origin}${window.location.pathname}#/chat/${encodeURIComponent(props.chatId)}`;
+    }
+
+    async function copyInviteLink() {
+      await navigator.clipboard.writeText(inviteLink());
+      statusMessage.value = "Invite link copied.";
+    }
 
     async function sendMessage() {
       statusMessage.value = "";
 
       if (!session.value || !chat.value) {
-        statusMessage.value =
-          "You must be logged in and inside a valid chat.";
-
+        statusMessage.value = "You must be logged in and inside a valid chat.";
         return;
       }
 
@@ -177,23 +248,20 @@ export default {
 
       try {
         sendingMessage.value = true;
-
         statusMessage.value = "Sending message...";
+
+        const messageContent = draftMessage.value.trim();
 
         const messageObject = await graffiti.post(
           {
             value: {
               activity: "Send",
-
               type: "Message",
-
-              content: draftMessage.value.trim(),
-
+              content: messageContent,
               published: Date.now(),
             },
 
             channels: [props.chatId],
-
             allowed: chat.value.value.members,
           },
 
@@ -201,23 +269,17 @@ export default {
         );
 
         if (draftImportant.value) {
-          statusMessage.value =
-            "Sending and starring message...";
-
           await graffiti.post(
             {
               value: {
                 activity: "Star",
-
                 type: "ImportantMark",
-
                 target: messageObject.url,
-
+                messagePreview: messageContent,
                 published: Date.now(),
               },
 
               channels: [props.chatId],
-
               allowed: chat.value.value.members,
             },
 
@@ -226,7 +288,6 @@ export default {
         }
 
         draftMessage.value = "";
-
         draftImportant.value = false;
 
         await pollEvents();
@@ -234,52 +295,38 @@ export default {
         statusMessage.value = "Message sent.";
       } catch (error) {
         console.error(error);
-
-        statusMessage.value =
-          "Message failed to send.";
+        statusMessage.value = "Message failed to send.";
       } finally {
         sendingMessage.value = false;
       }
     }
 
     async function toggleImportant(message) {
-      if (
-        !session.value ||
-        !chat.value ||
-        busyMessageTarget.value
-      ) {
-        return;
-      }
+      if (!session.value || !chat.value || busyMessageTarget.value) return;
 
-      const nextActivity = message.important
-        ? "Unstar"
-        : "Star";
+      const nextImportant = !message.important;
+      const nextActivity = nextImportant ? "Star" : "Unstar";
+      const nextType = nextImportant ? "ImportantMark" : "ImportantUnmark";
 
-      const nextType = message.important
-        ? "ImportantUnmark"
-        : "ImportantMark";
+      localStarOverrides.value = {
+        ...localStarOverrides.value,
+        [message.url]: nextImportant,
+      };
 
       try {
         busyMessageTarget.value = message.url;
-
-        statusMessage.value = message.important
-          ? "Removing from starred messages..."
-          : "Adding to starred messages...";
 
         await graffiti.post(
           {
             value: {
               activity: nextActivity,
-
               type: nextType,
-
               target: message.url,
-
+              messagePreview: message.content,
               published: Date.now(),
             },
 
             channels: [props.chatId],
-
             allowed: chat.value.value.members,
           },
 
@@ -288,113 +335,157 @@ export default {
 
         await pollEvents();
 
-        statusMessage.value = message.important
-          ? "Removed from starred messages."
-          : "Added to starred messages.";
+        const copy = { ...localStarOverrides.value };
+        delete copy[message.url];
+        localStarOverrides.value = copy;
+
+        statusMessage.value = nextImportant
+          ? "Added to starred messages."
+          : "Removed from starred messages.";
       } catch (error) {
         console.error(error);
 
-        statusMessage.value =
-          "Could not update starred message.";
+        localStarOverrides.value = {
+          ...localStarOverrides.value,
+          [message.url]: message.important,
+        };
+
+        statusMessage.value = "Could not update starred message.";
       } finally {
         busyMessageTarget.value = "";
       }
     }
 
-    async function toggleReminder(message) {
-      if (
-        !session.value ||
-        !chat.value ||
-        busyMessageTarget.value
-      ) {
+    async function cancelReminder(message) {
+      await graffiti.post(
+        {
+          value: {
+            activity: "CancelReminder",
+            type: "MessageReminderCancel",
+            target: message.url,
+            published: Date.now(),
+          },
+
+          channels: [
+            props.chatId,
+            session.value.actor + "/reminders",
+          ],
+
+          allowed: [session.value.actor],
+        },
+
+        session.value
+      );
+
+      await pollEvents();
+      statusMessage.value = "Reminder canceled.";
+    }
+
+    async function saveReminder(message) {
+      if (!reminderDrafts.value[message.url]) {
+        statusMessage.value = "Choose a reminder time first.";
         return;
       }
 
-      const nextActivity = message.reminded
-        ? "CancelReminder"
-        : "Remind";
+      const remindAt = new Date(reminderDrafts.value[message.url]).getTime();
 
-      const nextType = message.reminded
-        ? "MessageReminderCancel"
-        : "MessageReminder";
+      if (Number.isNaN(remindAt)) {
+        statusMessage.value = "Choose a valid reminder time.";
+        return;
+      }
+
+      await graffiti.post(
+        {
+          value: {
+            activity: "Remind",
+            type: "MessageReminder",
+            target: message.url,
+            chatChannel: props.chatId,
+            chatTitle: chat.value.value.title,
+            messagePreview: message.content,
+            remindAt,
+            notified: false,
+            published: Date.now(),
+          },
+
+          channels: [
+            props.chatId,
+            session.value.actor + "/reminders",
+          ],
+
+          allowed: [session.value.actor],
+        },
+
+        session.value
+      );
+
+      reminderPickerTarget.value = "";
+      await pollEvents();
+
+      statusMessage.value = "Reminder saved.";
+    }
+
+    async function toggleReminder(message) {
+      if (!session.value || !chat.value || busyMessageTarget.value) return;
 
       try {
         busyMessageTarget.value = message.url;
 
-        statusMessage.value = message.reminded
-          ? "Canceling reminder..."
-          : "Saving reminder...";
-
-        await graffiti.post(
-          {
-            value: {
-              activity: nextActivity,
-
-              type: nextType,
-
-              target: message.url,
-
-              chatChannel: props.chatId,
-
-              chatTitle: chat.value.value.title,
-
-              messagePreview: message.content,
-
-              remindAt:
-                Date.now() +
-                24 * 60 * 60 * 1000,
-
-              published: Date.now(),
-            },
-
-            channels: [
-              props.chatId,
-              session.value.actor + "/reminders",
-            ],
-
-            allowed: [session.value.actor],
-          },
-
-          session.value
-        );
-
-        await pollEvents();
-
-        statusMessage.value = message.reminded
-          ? "Reminder canceled."
-          : "Reminder saved for tomorrow.";
+        if (message.reminded) {
+          await cancelReminder(message);
+        } else {
+          reminderPickerTarget.value =
+            reminderPickerTarget.value === message.url ? "" : message.url;
+        }
       } catch (error) {
         console.error(error);
-
-        statusMessage.value =
-          "Could not update reminder.";
+        statusMessage.value = "Could not update reminder.";
       } finally {
         busyMessageTarget.value = "";
       }
     }
 
+    async function removeMember(member) {
+      if (!session.value || !chat.value) return;
+
+      await graffiti.post(
+        {
+          value: {
+            activity: "RemoveMember",
+            type: "ChatMembership",
+            channel: props.chatId,
+            member,
+            published: Date.now(),
+          },
+
+          channels: [CHAT_INDEX_CHANNEL],
+          allowed: chat.value.value.members,
+        },
+
+        session.value
+      );
+
+      await pollChats();
+    }
+
     return {
       session,
-
       chat,
-
       messages,
-
       draftMessage,
-
       draftImportant,
-
       statusMessage,
-
       sendingMessage,
-
       busyMessageTarget,
-
+      reminderPickerTarget,
+      reminderDrafts,
       sendMessage,
-
       toggleImportant,
-
       toggleReminder,
+      saveReminder,
+      removeMember,
+      formatTime,
+      copyInviteLink,
     };
   },
 
@@ -405,10 +496,7 @@ export default {
         <p>Loading chat...</p>
       </section>
 
-      <section
-        v-else-if="session === null"
-        class="signed-out-state"
-      >
+      <section v-else-if="session === null" class="signed-out-state">
         <p>You must log in to view this chat.</p>
 
         <router-link to="/">
@@ -416,12 +504,9 @@ export default {
         </router-link>
       </section>
 
-      <section
-        v-else-if="!chat"
-        class="empty-state"
-      >
+      <section v-else-if="!chat" class="empty-state">
         <p>
-          Chat not found, or you do not have access to it.
+          Chat not found, or it may have been deleted.
         </p>
 
         <router-link to="/">
@@ -452,12 +537,42 @@ export default {
           <router-link
             class="primary-nav-pill"
             :to="'/chat/' + encodeURIComponent(chat.value.channel) + '/digest'"
-            title="View starred messages from this chat"
           >
             Starred
           </router-link>
 
         </header>
+
+        <section class="member-row">
+          <span
+            v-for="member in chat.value.members"
+            :key="member"
+            class="member-chip"
+          >
+            <ActorName
+              :actor="member"
+              fallback="Member"
+            />
+
+            <button
+              v-if="member !== session.actor"
+              type="button"
+              class="remove-member-button"
+              @click="removeMember(member)"
+              title="Remove member"
+            >
+              ×
+            </button>
+          </span>
+
+          <button
+            type="button"
+            class="small-copy-button"
+            @click="copyInviteLink"
+          >
+            Copy chat link
+          </button>
+        </section>
 
         <section class="messages">
 
@@ -478,10 +593,7 @@ export default {
                 <div class="message-meta">
 
                   <small>
-
-                    <span
-                      v-if="message.actor === session.actor"
-                    >
+                    <span v-if="message.actor === session.actor">
                       You
                     </span>
 
@@ -491,6 +603,7 @@ export default {
                       fallback="Member"
                     />
 
+                    · {{ formatTime(message.published) }}
                   </small>
 
                   <div class="message-actions">
@@ -512,22 +625,35 @@ export default {
                       @click="toggleReminder(message)"
                       :aria-label="message.reminded
                         ? 'Cancel reminder'
-                        : 'Remind me later'"
+                        : 'Set reminder'"
                       :title="message.reminded
                         ? 'Cancel reminder'
-                        : 'Remind me tomorrow'"
+                        : 'Set reminder'"
                     >
                       {{ message.reminded ? "⏰" : "🕘" }}
                     </button>
 
                   </div>
-
                 </div>
 
+                <div
+                  v-if="reminderPickerTarget === message.url"
+                  class="reminder-picker"
+                >
+                  <input
+                    type="datetime-local"
+                    v-model="reminderDrafts[message.url]"
+                  />
+
+                  <button
+                    type="button"
+                    @click="saveReminder(message)"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
-
             </article>
-
           </transition-group>
 
           <p
@@ -551,11 +677,12 @@ export default {
             @toggle="draftImportant = !draftImportant"
           />
 
-          <input
+          <textarea
             v-model="draftMessage"
             placeholder="Write your message"
             :disabled="sendingMessage"
-          />
+            rows="1"
+          ></textarea>
 
           <button
             type="submit"
@@ -577,7 +704,6 @@ export default {
         </p>
 
       </section>
-
     </main>
   `,
 };

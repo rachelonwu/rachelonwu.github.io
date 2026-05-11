@@ -11,17 +11,11 @@ const chatSchema = {
   properties: {
     value: {
       properties: {
-        activity: { const: "Create" },
-        type: { const: "Chat" },
-        title: { type: "string" },
-        channel: { type: "string" },
-        members: {
-          type: "array",
-          items: { type: "string" },
+        activity: {
+          enum: ["Create", "AddMember", "RemoveMember", "DeleteChat"],
         },
-        published: { type: "number" },
       },
-      required: ["activity", "type", "title", "channel", "members", "published"],
+      required: ["activity"],
     },
   },
 };
@@ -41,19 +35,33 @@ const eventSchema = {
 
 export default {
   components: {
-  ActorName,
-},
+    ActorName,
+  },
+
   setup() {
     const session = useGraffitiSession();
 
     const { objects: chatObjects } = useGraffitiDiscover(
       [CHAT_INDEX_CHANNEL],
       chatSchema,
-      session
+      session,
+      true
     );
 
+    const activeChats = computed(() => {
+      const deletedChannels = new Set(
+        chatObjects.value
+          .filter((object) => object.value.activity === "DeleteChat")
+          .map((object) => object.value.channel)
+      );
+
+      return chatObjects.value
+        .filter((object) => object.value.activity === "Create")
+        .filter((object) => !deletedChannels.has(object.value.channel));
+    });
+
     const chatChannels = computed(() => {
-      const channels = chatObjects.value.map((chat) => chat.value.channel);
+      const channels = activeChats.value.map((chat) => chat.value.channel);
       return channels.length > 0 ? channels : ["empty-digest-placeholder"];
     });
 
@@ -74,7 +82,10 @@ export default {
         )
         .sort((a, b) => a.value.published - b.value.published);
 
-      if (matching.length === 0) return false;
+      if (matching.length === 0) {
+        return false;
+      }
+
       return matching[matching.length - 1].value.activity === "Star";
     }
 
@@ -83,7 +94,7 @@ export default {
         .filter((object) => object.value.activity === "Send")
         .filter((message) => isCurrentlyStarred(message.url))
         .map((message) => {
-          const chat = chatObjects.value.find((chatObject) =>
+          const chat = activeChats.value.find((chatObject) =>
             message.channels?.includes(chatObject.value.channel)
           );
 
@@ -99,18 +110,36 @@ export default {
         .sort((a, b) => b.published - a.published);
     });
 
+    function formatTime(timestamp) {
+      return new Date(timestamp).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
 
     return {
       session,
       digestItems,
+      formatTime,
     };
   },
 
   template: `
     <main class="phone-shell">
-      <header class="chat-topbar digest-topbar">
-        <router-link to="/" class="back-link" title="Back home">‹</router-link>
+
+      <header class="home-header">
+
         <h1>Starred Messages</h1>
+
+        <router-link
+          to="/"
+          class="home-button"
+        >
+          Home
+        </router-link>
+
       </header>
 
       <p class="page-note">
@@ -123,37 +152,61 @@ export default {
 
       <section v-else-if="session === null" class="signed-out-state">
         <p>Log in to view your starred messages.</p>
+
+        <router-link
+          to="/"
+          class="home-button"
+        >
+          Home
+        </router-link>
       </section>
 
       <section v-else>
+
         <article
           v-for="item in digestItems"
           :key="item.url"
           class="digest-card"
         >
+
           <strong>{{ item.chatTitle }}</strong>
+
           <p>{{ item.content }}</p>
+
           <small>
-  <span v-if="item.actor === session.actor">You</span>
-  <ActorName
-    v-else
-    :actor="item.actor"
-    fallback="Member"
-  />
-</small>
+            <span v-if="item.actor === session.actor">
+              You
+            </span>
+
+            <ActorName
+              v-else
+              :actor="item.actor"
+              fallback="Member"
+            />
+
+            · {{ formatTime(item.published) }}
+          </small>
+
           <br />
+
           <router-link
             v-if="item.chatChannel"
             :to="'/chat/' + encodeURIComponent(item.chatChannel)"
           >
             Open chat
           </router-link>
+
         </article>
 
-        <p v-if="digestItems.length === 0" class="empty-state">
+        <p
+          v-if="digestItems.length === 0"
+          class="empty-state"
+        >
           No starred messages yet.
         </p>
+
       </section>
+
     </main>
   `,
 };
